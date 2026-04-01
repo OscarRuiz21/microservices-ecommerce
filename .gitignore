@@ -1,0 +1,40 @@
+# ===================== Build =====================
+target/
+build/
+!**/src/main/**/target/
+!**/src/test/**/target/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# ==================== IDE =======================
+.idea/
+*.iws
+*.iml
+*.ipr
+.vscode/
+.settings/
+.classpath
+.project
+.factorypath
+
+# ================ Spring / Maven ================
+.mvn/wrapper/maven-wrapper.jar
+HELP.md
+.apt_generated
+.springBeans
+.sts4-cache
+
+# =========== Configuración Sensible =============
+# config-data tiene client-secrets de Keycloak, passwords de BD, etc.
+config-data/
+
+# Archivos de variables de entorno con credenciales
+.env
+*.env
+
+# ================== Logs ========================
+*.log
+
+# ================ OS / Misc ====================
+.DS_Store
+Thumbs.db
