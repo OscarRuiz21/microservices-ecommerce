@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timeout Pattern: El Arte de Soltar</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #1e1e1e; color: #d4d4d4; font-family: 'Consolas', 'Courier New', monospace; overflow-x: hidden; }
+        .slide { min-height: 100vh; padding: 60px 80px; display: flex; flex-direction: column; justify-content: center; border-bottom: 3px solid #dcdcaa; }
+        h1 { color: #dcdcaa; font-size: 3.5em; margin-bottom: 30px; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
+        h2 { color: #569cd6; font-size: 2.8em; margin-bottom: 25px; border-left: 8px solid #569cd6; padding-left: 25px; }
+        .subtitle { color: #9cdcfe; font-size: 1.8em; margin-bottom: 40px; font-style: italic; }
+        .big-idea { background: linear-gradient(135deg, #3a2d2d 0%, #2d2d2d 100%); border-left: 8px solid #f48771; padding: 40px; margin: 40px 0; border-radius: 10px; font-size: 1.8em; color: #f48771; font-weight: bold; box-shadow: 0 8px 16px rgba(0,0,0,0.4); }
+        .concept-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin: 40px 0; }
+        .card { background: #2d2d30; padding: 35px; border-radius: 12px; border: 4px solid; transition: transform 0.3s; }
+        .card:hover { transform: translateY(-10px); }
+        .slow { border-color: #f48771; }
+        .fast { border-color: #4ec9b0; }
+        .card-title { font-size: 2em; margin-bottom: 20px; font-weight: bold; }
+        .slow .card-title { color: #f48771; }
+        .fast .card-title { color: #4ec9b0; }
+        .card-content { font-size: 1.3em; line-height: 1.8; }
+        .thread-pool { background: #252526; padding: 40px; border-radius: 10px; border: 3px solid #c586c0; margin: 30px 0; }
+        .pool-title { color: #c586c0; font-size: 2em; margin-bottom: 20px; font-weight: bold; text-align: center; }
+        .pool-visual { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
+        .thread { width: 40px; height: 40px; background: #4ec9b0; border-radius: 50%; }
+        .thread.blocked { background: #f48771; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        .rule-number { color: #dcdcaa; font-size: 3em; font-weight: bold; margin-bottom: 10px; }
+        .final-quote { background: linear-gradient(135deg, #264f78 0%, #1e3a5f 100%); border: 4px solid #4fc1ff; padding: 50px; margin: 50px 0; border-radius: 15px; font-size: 2.2em; color: #4fc1ff; font-weight: bold; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div class="slide">
+    <h1>Timeout Pattern</h1>
+    <div class="subtitle">El Arte de Soltar (y fallar rápido)</div>
+    <div class="big-idea">
+        En sistemas distribuidos, una respuesta lenta es mucho más peligrosa que una respuesta fallida.
+    </div>
+</div>
+
+<div class="slide">
+    <h2>El Asesino Silencioso: Latencia</h2>
+    <div class="concept-grid">
+        <div class="card slow">
+            <div class="card-title">🐢 Respuesta Lenta</div>
+            <div class="card-content">
+                El servicio tarda 30 segundos en responder.<br><br>
+                El cliente se queda esperando (hilo bloqueado).<br><br>
+                <strong>Resultado:</strong> Consumo de recursos.
+            </div>
+        </div>
+        <div class="card fast">
+            <div class="card-title">💥 Fallo Rápido</div>
+            <div class="card-content">
+                El servicio falla en 10ms (Excepción).<br><br>
+                El cliente se libera inmediatamente.<br><br>
+                <strong>Resultado:</strong> Sistema disponible.
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="slide">
+    <h2>¿Por qué explota el servidor?</h2>
+    <div class="pool-title">Thread Pool Exhaustion (Agotamiento de Hilos)</div>
+    <div class="thread-pool">
+        <p style="text-align: center; font-size: 1.4em; margin-bottom: 20px;">
+            Imagina que tu servidor tiene capacidad para atender <strong>10 clientes</strong> simultáneos.
+        </p>
+        <div class="pool-visual">
+            <div class="thread blocked"></div><div class="thread blocked"></div>
+            <div class="thread blocked"></div><div class="thread blocked"></div>
+            <div class="thread blocked"></div><div class="thread blocked"></div>
+            <div class="thread blocked"></div><div class="thread blocked"></div>
+            <div class="thread blocked"></div><div class="thread blocked"></div>
+        </div>
+        <p style="text-align: center; font-size: 1.4em; margin-top: 20px; color: #f48771;">
+            Si 10 usuarios piden algo lento, <strong>el usuario #11 es rechazado</strong> aunque el sistema no tenga errores.
+        </p>
+    </div>
+</div>
+
+<div class="slide">
+    <h2>La Solución: Poner un Cronómetro</h2>
+    <div class="big-idea" style="border-color: #4ec9b0; color: #4ec9b0;">
+        El Timeout Pattern establece un límite máximo de espera.<br>
+        "Si no terminas en 3 segundos, me voy."
+    </div>
+    <div class="card" style="border-color: #dcdcaa;">
+        <div class="card-title" style="color: #dcdcaa;">⚙️ Cómo funciona</div>
+        <div class="card-content">
+            1. Iniciamos la petición y arrancamos un timer.<br>
+            2. Si la respuesta llega antes del timer ✅ → Todo bien.<br>
+            3. Si el timer suena antes ❌ → <strong>Cancelamos</strong> la ejecución y lanzamos <code>TimeoutException</code>.
+        </div>
+    </div>
+</div>
+
+<div class="slide">
+    <h2>La Trinidad de la Resiliencia</h2>
+    <div class="concept-grid" style="grid-template-columns: 1fr 1fr 1fr;">
+        <div class="card" style="border-color: #569cd6;">
+            <div class="card-title" style="color: #569cd6; font-size: 1.5em;">🛡️ Circuit Breaker</div>
+            <div class="card-content" style="font-size: 1em;">
+                "Evita llamar si ya sabemos que está roto."
+            </div>
+        </div>
+        <div class="card" style="border-color: #c586c0;">
+            <div class="card-title" style="color: #c586c0; font-size: 1.5em;">🔄 Retry</div>
+            <div class="card-content" style="font-size: 1em;">
+                "Intenta de nuevo si fue un parpadeo."
+            </div>
+        </div>
+        <div class="card" style="border-color: #dcdcaa;">
+            <div class="card-title" style="color: #dcdcaa; font-size: 1.5em;">⏱️ Timeout</div>
+            <div class="card-content" style="font-size: 1em;">
+                "No esperes por siempre."
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="slide">
+    <h2>En Resumen</h2>
+    <div class="final-quote">
+        "Esperar consume más recursos que fallar.<br>
+        Un buen arquitecto prefiere un error 503 rápido<br>
+        que un servidor colgado eternamente."
+    </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retry Pattern: El Arte de la Insistencia Elegante</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'Consolas', 'Courier New', monospace;
+            overflow-x: hidden;
+        }
+        
+        .slide {
+            min-height: 100vh;
+            padding: 60px 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            border-bottom: 3px solid #007acc;
+        }
+        
+        h1 {
+            color: #4ec9b0;
+            font-size: 3.5em;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        h2 {
+            color: #569cd6;
+            font-size: 2.8em;
+            margin-bottom: 25px;
+            border-left: 8px solid #569cd6;
+            padding-left: 25px;
+        }
+        
+        h3 {
+            color: #ce9178;
+            font-size: 2em;
+            margin: 30px 0 20px 0;
+        }
+        
+        .subtitle {
+            color: #9cdcfe;
+            font-size: 1.8em;
+            margin-bottom: 40px;
+            font-style: italic;
+        }
+        
+        .big-idea {
+            background: linear-gradient(135deg, #264f78 0%, #1e3a5f 100%);
+            border-left: 8px solid #4fc1ff;
+            padding: 40px;
+            margin: 40px 0;
+            border-radius: 10px;
+            font-size: 1.8em;
+            color: #4fc1ff;
+            font-weight: bold;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+        }
+        
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin: 40px 0;
+        }
+        
+        .method {
+            background: #2d2d30;
+            padding: 35px;
+            border-radius: 12px;
+            border: 4px solid;
+            transition: transform 0.3s;
+        }
+        
+        .method:hover {
+            transform: translateY(-10px);
+        }
+        
+        .monolith {
+            border-color: #f48771;
+            background: linear-gradient(135deg, #2d2d30 0%, #3a2d2d 100%);
+        }
+        
+        .microservices {
+            border-color: #4ec9b0;
+            background: linear-gradient(135deg, #2d2d30 0%, #2d3a34 100%);
+        }
+        
+        .method-title {
+            font-size: 2.2em;
+            margin-bottom: 25px;
+            font-weight: bold;
+        }
+        
+        .monolith .method-title { color: #f48771; }
+        .microservices .method-title { color: #4ec9b0; }
+        
+        .method-content {
+            font-size: 1.3em;
+            line-height: 1.9;
+        }
+        
+        .problem {
+            background: #5a1d1d;
+            padding: 25px;
+            margin-top: 25px;
+            border-radius: 8px;
+            border-left: 5px solid #f48771;
+        }
+        
+        .problem-title {
+            color: #f48771;
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        .benefit {
+            background: #1d3a2d;
+            padding: 25px;
+            margin-top: 25px;
+            border-radius: 8px;
+            border-left: 5px solid #4ec9b0;
+        }
+        
+        .benefit-title {
+            color: #4ec9b0;
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        .qa-section {
+            background: #252526;
+            padding: 35px;
+            margin: 30px 0;
+            border-radius: 10px;
+            border: 3px solid #c586c0;
+        }
+        
+        .question {
+            color: #c586c0;
+            font-size: 2em;
+            margin: 25px 0 15px 0;
+            font-weight: bold;
+        }
+        
+        .answer {
+            color: #9cdcfe;
+            font-size: 1.5em;
+            margin-left: 40px;
+            line-height: 1.8;
+            margin-bottom: 20px;
+        }
+        
+        .highlight {
+            background: #3c1f1f;
+            padding: 20px 30px;
+            border-left: 6px solid #f48771;
+            margin: 20px 0;
+            font-size: 1.6em;
+            color: #f48771;
+            font-weight: bold;
+        }
+        
+        .golden-rules {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            margin: 40px 0;
+        }
+        
+        .rule-card {
+            background: #2d2d30;
+            padding: 30px;
+            border-radius: 10px;
+            border-top: 6px solid #dcdcaa;
+            transition: transform 0.3s;
+        }
+        
+        .rule-card:hover {
+            transform: translateY(-10px);
+            background: #3a3a3a;
+        }
+        
+        .rule-number {
+            color: #dcdcaa;
+            font-size: 3em;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        .rule-title {
+            color: #dcdcaa;
+            font-size: 1.8em;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        
+        .rule-content {
+            font-size: 1.3em;
+            line-height: 1.8;
+            color: #d4d4d4;
+        }
+        
+        .backoff-section {
+            background: #1e1e1e;
+            padding: 40px;
+            border: 3px solid #c586c0;
+            border-radius: 10px;
+            margin: 40px 0;
+        }
+        
+        .backoff-type {
+            background: #2d2d30;
+            padding: 25px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border-left: 6px solid #c586c0;
+        }
+        
+        .backoff-type-title {
+            color: #c586c0;
+            font-size: 1.8em;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        
+        .backoff-type-content {
+            font-size: 1.4em;
+            line-height: 1.8;
+            color: #d4d4d4;
+        }
+        
+        .dos-donts {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin: 40px 0;
+        }
+        
+        .dos {
+            background: #1d3a2d;
+            padding: 35px;
+            border-radius: 12px;
+            border: 4px solid #4ec9b0;
+        }
+        
+        .donts {
+            background: #5a1d1d;
+            padding: 35px;
+            border-radius: 12px;
+            border: 4px solid #f48771;
+        }
+        
+        .dos-title {
+            color: #4ec9b0;
+            font-size: 2.2em;
+            margin-bottom: 25px;
+            font-weight: bold;
+        }
+        
+        .donts-title {
+            color: #f48771;
+            font-size: 2.2em;
+            margin-bottom: 25px;
+            font-weight: bold;
+        }
+        
+        .list-item {
+            font-size: 1.4em;
+            line-height: 2;
+            margin: 15px 0;
+            padding-left: 30px;
+        }
+        
+        .error-types {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin: 40px 0;
+        }
+        
+        .error-card {
+            background: #2d2d30;
+            padding: 25px;
+            border-radius: 10px;
+            border-left: 6px solid;
+            transition: transform 0.3s;
+        }
+        
+        .error-card:hover {
+            transform: translateX(10px);
+        }
+        
+        .transient {
+            border-color: #4ec9b0;
+        }
+        
+        .permanent {
+            border-color: #f48771;
+        }
+        
+        .error-status {
+            font-size: 1.6em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .transient .error-status { color: #4ec9b0; }
+        .permanent .error-status { color: #f48771; }
+        
+        .error-description {
+            font-size: 1.3em;
+            line-height: 1.7;
+        }
+        
+        .key-point {
+            background: #264f78;
+            padding: 25px 35px;
+            margin: 25px 0;
+            border-radius: 8px;
+            font-size: 1.5em;
+            border-left: 6px solid #4fc1ff;
+        }
+        
+        .classification {
+            background: #252526;
+            padding: 40px;
+            margin: 40px 0;
+            border-radius: 10px;
+            border: 3px solid #569cd6;
+        }
+        
+        .classification-title {
+            color: #569cd6;
+            font-size: 2.2em;
+            margin-bottom: 25px;
+            font-weight: bold;
+        }
+        
+        .classification-content {
+            font-size: 1.4em;
+            line-height: 1.9;
+        }
+        
+        code {
+            background: #1e1e1e;
+            padding: 5px 12px;
+            border-radius: 5px;
+            color: #ce9178;
+            font-family: 'Consolas', monospace;
+            border: 1px solid #007acc;
+        }
+        
+        .final-quote {
+            background: linear-gradient(135deg, #264f78 0%, #1e3a5f 100%);
+            border: 4px solid #4fc1ff;
+            padding: 50px;
+            margin: 50px 0;
+            border-radius: 15px;
+            font-size: 2.2em;
+            color: #4fc1ff;
+            font-weight: bold;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        
+        @media (max-width: 1200px) {
+            .golden-rules {
+                grid-template-columns: 1fr;
+            }
+            
+            .comparison, .dos-donts {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SLIDE 1: TITLE -->
+    <div class="slide">
+        <h1>Retry Pattern</h1>
+        <div class="subtitle">El Arte de la Insistencia Elegante</div>
+        <div class="big-idea">
+            ¿Es un patrón de diseño o de arquitectura?<br>
+            Esta es la pregunta que mucha gente no se hace.
+        </div>
+    </div>
+
+    <!-- SLIDE 2: CLASSIFICATION -->
+    <div class="slide">
+        <h2>¿Qué es realmente el Retry Pattern?</h2>
+        
+        <div class="classification">
+            <div class="classification-title">🏛️ Clasificación Técnica</div>
+            <div class="classification-content">
+                El Retry Pattern se clasifica como un <strong style="color: #4ec9b0;">Patrón de Estabilidad</strong> o <strong style="color: #4ec9b0;">Cloud Design Pattern</strong> (Patrón de Diseño en la Nube).
+            </div>
+        </div>
+
+        <div class="key-point">
+            Aunque se implementa en el código (diseño), su impacto y propósito son <strong>arquitectónicos</strong>.
+        </div>
+
+        <div class="qa-section">
+            <div class="question">¿Por qué es un híbrido?</div>
+            <div class="answer">
+                <strong>Como Patrón de Diseño:</strong> Se parece a un Decorator o Proxy. Envuelves tu llamada original en una lógica que la repite.
+            </div>
+            <div class="answer">
+                <strong>Como Patrón Arquitectónico:</strong> Es vital para la Resiliencia. Define cómo se comportan tus servicios cuando la red es hostil.
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 3: THE CONCEPT -->
+    <div class="slide">
+        <h2>El Concepto Fundamental</h2>
+        
+        <div class="big-idea">
+            Es una estrategia de manejo de errores que asume que ciertas fallas son <strong>temporales (transitorias)</strong>.
+        </div>
+
+        <div class="key-point" style="font-size: 2em; text-align: center;">
+            "Si falló ahora, quizás en 200 milisegundos funcione"
+        </div>
+
+        <div class="highlight">
+            ⚡ La premisa del Retry: No te rindas a la primera. Espera un poco y prueba de nuevo.
+        </div>
+    </div>
+
+    <!-- SLIDE 4: MONOLITH VS MICROSERVICES -->
+    <div class="slide">
+        <h2>¿Por qué es más relevante en Microservicios?</h2>
+        
+        <div class="comparison">
+            <div class="method monolith">
+                <div class="method-title">🏢 Monolito</div>
+                <div class="method-content">
+                    Todo está en <strong>una sola memoria</strong>.
+                    <br><br>
+                    Si algo falla, suele ser <strong>definitivo</strong>:
+                    <br><br>
+                    • NullPointerException<br>
+                    • Error de lógica<br>
+                    • Datos inválidos<br>
+                    • División por cero
+                </div>
+                <div class="problem">
+                    <div class="problem-title">❌ Sin red = Sin errores transitorios</div>
+                    Los fallos son deterministas y reproducibles.
+                </div>
+            </div>
+
+            <div class="method microservices">
+                <div class="method-title">🌐 Microservicios</div>
+                <div class="method-content">
+                    Todo está <strong>distribuido en red</strong>.
+                    <br><br>
+                    El <strong>90% de los errores</strong> son de red:
+                    <br><br>
+                    • Un parpadeo en el WiFi<br>
+                    • Balanceador cambiando instancias<br>
+                    • Base de datos bloqueada 5ms<br>
+                    • Timeout por congestión
+                </div>
+                <div class="benefit">
+                    <div class="benefit-title">✅ La red es caótica = Retry es esencial</div>
+                    La mayoría de estos errores desaparecen en milisegundos.
+                </div>
+            </div>
+        </div>
+
+        <div class="big-idea">
+            Sin Retry, una arquitectura de microservicios es <strong>extremadamente frágil</strong>. Un solo fallo en cadena rompe todo.
+        </div>
+    </div>
+
+    <!-- SLIDE 5: GOLDEN RULES -->
+    <div class="slide">
+        <h2>Las 3 Reglas de Oro</h2>
+        
+        <div class="subtitle">Un buen Retry no es solo un <code>while(true)</code></div>
+
+        <div class="golden-rules">
+            <div class="rule-card">
+                <div class="rule-number">1</div>
+                <div class="rule-title">Count (Cantidad)</div>
+                <div class="rule-content">
+                    ¿Cuántas veces insisto?
+                    <br><br>
+                    Ejemplo: <code>3 veces</code>
+                    <br><br>
+                    Si insistes infinitamente, <strong>bloqueas tu propio sistema</strong>.
+                </div>
+            </div>
+
+            <div class="rule-card">
+                <div class="rule-number">2</div>
+                <div class="rule-title">Interval (Espera)</div>
+                <div class="rule-content">
+                    ¿Cuánto espero entre intentos?
+                    <br><br>
+                    Ejemplo: <code>2 segundos</code>
+                    <br><br>
+                    Dar tiempo al servicio para recuperarse.
+                </div>
+            </div>
+
+            <div class="rule-card">
+                <div class="rule-number">3</div>
+                <div class="rule-title">Backoff (Retroceso)</div>
+                <div class="rule-content">
+                    Esta es la <strong>"inteligencia"</strong> del patrón.
+                    <br><br>
+                    Define cómo crece el tiempo de espera entre intentos.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 6: BACKOFF STRATEGIES -->
+    <div class="slide">
+        <h2>Estrategias de Backoff</h2>
+        
+        <div class="backoff-section">
+            <h3 style="color: #c586c0; text-align: center; margin-bottom: 30px;">La inteligencia del Retry</h3>
+            
+            <div class="backoff-type">
+                <div class="backoff-type-title">📊 Fixed Backoff (Fijo)</div>
+                <div class="backoff-type-content">
+                    Espero siempre el mismo tiempo: <code>2s → 2s → 2s</code>
+                    <br><br>
+                    <strong>Problema:</strong> Si el servicio está saturado, seguirás bombardeándolo con la misma frecuencia.
+                </div>
+            </div>
+
+            <div class="backoff-type" style="border-color: #4ec9b0;">
+                <div class="backoff-type-title" style="color: #4ec9b0;">🚀 Exponential Backoff (Exponencial) ✨</div>
+                <div class="backoff-type-content">
+                    El tiempo de espera crece exponencialmente: <code>1s → 2s → 4s → 8s</code>
+                    <br><br>
+                    <strong style="color: #4ec9b0;">✅ Best Practice:</strong> No saturas al servicio que ya está sufriendo. Le das cada vez más tiempo para recuperarse.
+                </div>
+            </div>
+        </div>
+
+        <div class="key-point">
+            💡 Exponential Backoff es la estrategia recomendada por AWS, Google Cloud y Azure para sistemas distribuidos.
+        </div>
+    </div>
+
+    <!-- SLIDE 7: WHEN NOT TO USE -->
+    <div class="slide">
+        <h2>¿Cuándo NO usarlo?</h2>
+        
+        <div class="subtitle">La trampa del Retry mal aplicado</div>
+
+        <div class="big-idea">
+            El Retry solo sirve para <strong>Errores Transitorios</strong>
+        </div>
+
+        <div class="dos-donts">
+            <div class="dos">
+                <div class="dos-title">✅ Úsalo para:</div>
+                <div class="list-item">🔌 <code>503 Service Unavailable</code></div>
+                <div class="list-item">⏱️ <code>Timeout</code></div>
+                <div class="list-item">🚫 <code>Connection Refused</code></div>
+                <div class="list-item">📡 <code>Network Error</code></div>
+                <div class="list-item">🔄 <code>429 Too Many Requests</code></div>
+                <div style="margin-top: 25px; font-size: 1.3em; line-height: 1.8;">
+                    <strong>Por qué:</strong> Estos errores son temporales. El servicio puede estar reiniciándose, el balanceador rotando instancias, o la red congestionada.
+                </div>
+            </div>
+
+            <div class="donts">
+                <div class="donts-title">❌ NO lo uses para:</div>
+                <div class="list-item">🔐 <code>401 Unauthorized</code></div>
+                <div class="list-item">📝 <code>400 Bad Request</code></div>
+                <div class="list-item">🔍 <code>404 Not Found</code></div>
+                <div class="list-item">🚷 <code>403 Forbidden</code></div>
+                <div class="list-item">💥 <code>500 Internal Server Error</code></div>
+                <div style="margin-top: 25px; font-size: 1.3em; line-height: 1.8;">
+                    <strong>Por qué:</strong> Si te equivocaste en la contraseña, por más que reintentes 100 veces, seguirá estando mal. Solo gastarás recursos.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 8: ERROR TYPES DETAIL -->
+    <div class="slide">
+        <h2>Tipos de Errores en Detalle</h2>
+        
+        <h3 style="text-align: center; margin-bottom: 40px;">Saber distinguirlos es crítico</h3>
+
+        <div class="error-types">
+            <div class="error-card transient">
+                <div class="error-status">✅ 503 Service Unavailable</div>
+                <div class="error-description">
+                    El servicio está temporalmente fuera de línea. <strong>Reintentar en 2-5 segundos</strong> tiene sentido.
+                </div>
+            </div>
+
+            <div class="error-card transient">
+                <div class="error-status">✅ Timeout</div>
+                <div class="error-description">
+                    La red estaba lenta o el servidor sobrecargado. <strong>Puede funcionar</strong> en el siguiente intento.
+                </div>
+            </div>
+
+            <div class="error-card transient">
+                <div class="error-status">✅ Connection Refused</div>
+                <div class="error-description">
+                    El servicio está reiniciándose. <strong>En unos segundos</strong> podría estar disponible.
+                </div>
+            </div>
+
+            <div class="error-card permanent">
+                <div class="error-status">❌ 401 Unauthorized</div>
+                <div class="error-description">
+                    Token inválido o expirado. <strong>Reintentar no cambiará</strong> el resultado. Necesitas un nuevo token.
+                </div>
+            </div>
+
+            <div class="error-card permanent">
+                <div class="error-status">❌ 400 Bad Request</div>
+                <div class="error-description">
+                    Los datos están mal formados. <strong>El mismo request siempre</strong> dará el mismo error.
+                </div>
+            </div>
+
+            <div class="error-card permanent">
+                <div class="error-status">❌ 404 Not Found</div>
+                <div class="error-description">
+                    El recurso no existe. <strong>Insistir 10 veces</strong> no lo creará mágicamente.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 9: PRACTICAL EXAMPLE -->
+    <div class="slide">
+        <h2>Ejemplo Práctico</h2>
+        
+        <div class="qa-section">
+            <div class="question">Escenario Real</div>
+            <div class="answer">
+                Tu sistema hace una petición HTTP a un microservicio de inventario. La red tiene un "parpadeo" de 0.5 segundos y la conexión falla.
+            </div>
+        </div>
+
+        <div class="comparison">
+            <div class="method monolith">
+                <div class="method-title">❌ Sin Retry</div>
+                <div class="method-content">
+                    <strong>Intento 1:</strong> Timeout<br>
+                    <strong>Resultado:</strong> Error al usuario<br>
+                    <strong>Usuario:</strong> 😡 "La app no funciona"
+                </div>
+                <div class="problem">
+                    <div class="problem-title">Pérdida de negocio</div>
+                    El usuario ve un error por un problema de red de medio segundo. Mala experiencia.
+                </div>
+            </div>
+
+            <div class="method microservices">
+                <div class="method-title">✅ Con Retry (Exponential Backoff)</div>
+                <div class="method-content">
+                    <strong>Intento 1:</strong> Timeout (1s)<br>
+                    <strong>Espera:</strong> 1 segundo<br>
+                    <strong>Intento 2:</strong> ✅ Éxito<br>
+                    <strong>Usuario:</strong> 😊 "Todo funcionó"
+                </div>
+                <div class="benefit">
+                    <div class="benefit-title">Resiliencia automática</div>
+                    El usuario ni siquiera sabe que hubo un problema. Sistema robusto.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 10: SUMMARY -->
+    <div class="slide">
+        <h2>Entonces:</h2>
+        
+        <div class="key-point">
+            <strong>🎯 Naturaleza:</strong> Patrón de Estabilidad / Cloud Design Pattern
+        </div>
+
+        <div class="key-point">
+            <strong>💡 Propósito:</strong> Manejar errores transitorios en sistemas distribuidos
+        </div>
+
+        <div class="key-point">
+            <strong>⚙️ Componentes:</strong> Count (cantidad) + Interval (espera) + Backoff (estrategia)
+        </div>
+
+        <div class="key-point">
+            <strong>🚀 Best Practice:</strong> Exponential Backoff
+        </div>
+
+        <div class="key-point">
+            <strong>⚠️ Cuidado:</strong> Solo para errores transitorios, no errores de lógica
+        </div>
+
+        <div class="final-quote">
+            "El Retry Pattern es el arte de la insistencia elegante.<br><br>
+            Es la herramienta que evita que tu usuario vea una pantalla de error<br>
+            solo porque un cable de red parpadeó durante 0.5 segundos."
+        </div>
+    </div>
+
+</body>
+</html>
