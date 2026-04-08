@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clase 9.3 — Definiendo el Evento</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+
+    :root {
+      --bg-base:      #1e1e2e;
+      --bg-surface:   #2a2a3d;
+      --bg-card:      #252538;
+      --bg-code:      #1a1a2a;
+      --text-primary: #cdd6f4;
+      --text-dim:     #7f849c;
+      --text-white:   #f2f2f2;
+      --accent-green: #a6e3a1;
+      --accent-red:   #f38ba8;
+      --accent-yellow:#f9e2af;
+      --accent-blue:  #89b4fa;
+      --accent-cyan:  #89dceb;
+      --accent-pink:  #f38ba8;
+      --accent-orange:#fab387;
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    html, body {
+      width:100%; height:100%; overflow:hidden;
+      background:#111118;
+      font-family:'Inter', sans-serif;
+      color: var(--text-primary);
+      user-select:none;
+    }
+
+    /* ── SLIDES CONTAINER ── */
+    .deck {
+      display:flex;
+      width:100%;
+      height:100vh;
+      transition: transform .45s cubic-bezier(.4,0,.2,1);
+    }
+
+    .slide {
+      min-width:100vw;
+      height:100vh;
+      background: var(--bg-base);
+      position:relative;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      align-items:center;
+      padding: 48px 60px;
+      overflow:hidden;
+    }
+
+    /* ── NAV ── */
+    .nav {
+      position:fixed; bottom:28px; left:50%; transform:translateX(-50%);
+      display:flex; align-items:center; gap:14px;
+      background:rgba(30,30,46,.85); backdrop-filter:blur(12px);
+      border:1px solid rgba(137,180,250,.15);
+      border-radius:40px; padding:10px 22px;
+      z-index:100;
+    }
+    .nav button {
+      background:none; border:none; color:var(--text-dim);
+      font-size:20px; cursor:pointer; transition:color .2s;
+      font-family:'Inter',sans-serif;
+    }
+    .nav button:hover { color:var(--accent-blue); }
+    .nav button:disabled { opacity:.25; cursor:default; }
+    .dots { display:flex; gap:8px; }
+    .dot {
+      width:8px; height:8px; border-radius:50%;
+      background:var(--text-dim); transition:background .3s, transform .3s;
+      cursor:pointer;
+    }
+    .dot.active { background:var(--accent-blue); transform:scale(1.3); }
+
+    /* ── SLIDE LABELS ── */
+    .slide-label {
+      position:absolute; top:28px; left:40px;
+      font-family:'JetBrains Mono',monospace;
+      font-size:11px; color:var(--text-dim); letter-spacing:2px;
+      text-transform:uppercase;
+    }
+    .slide-label span { color:var(--accent-blue); }
+
+    /* ── CORNER TAG ── */
+    .corner-tag {
+      position:absolute; bottom:20px; right:24px;
+      font-family:'JetBrains Mono',monospace;
+      font-size:10px; color:var(--text-dim); letter-spacing:1.5px;
+      text-transform:uppercase;
+    }
+
+    /* ── TYPOGRAPHY ── */
+    h1 {
+      font-family:'JetBrains Mono',monospace;
+      font-size:38px; font-weight:700;
+      color:var(--text-white); line-height:1.2;
+      text-align:center;
+    }
+    h2 {
+      font-family:'JetBrains Mono',monospace;
+      font-size:26px; font-weight:600;
+      color:var(--text-white); margin-bottom:8px;
+    }
+    h3 {
+      font-family:'JetBrains Mono',monospace;
+      font-size:17px; font-weight:600;
+      color:var(--accent-cyan); margin-bottom:6px;
+    }
+    p, li {
+      font-size:15px; line-height:1.7; color:var(--text-primary);
+    }
+    .dim { color:var(--text-dim); font-size:13px; }
+    code {
+      font-family:'JetBrains Mono',monospace;
+      color:var(--accent-orange);
+      font-size:inherit;
+    }
+
+    p code, li code {
+       background:var(--bg-code);
+       padding:2px 7px;
+       border-radius:4px;
+       font-size:13px;
+    }
+
+    /* ── BADGES ── */
+    .badge {
+      display:inline-block;
+      font-family:'JetBrains Mono',monospace;
+      font-size:11px; font-weight:600;
+      padding:4px 10px; border-radius:20px;
+      letter-spacing:1px; text-transform:uppercase;
+    }
+    .badge-green  { background:rgba(166,227,161,.15); color:var(--accent-green); }
+    .badge-red    { background:rgba(243,139,168,.15); color:var(--accent-red);   }
+    .badge-yellow { background:rgba(249,226,175,.15); color:var(--accent-yellow);}
+    .badge-blue   { background:rgba(137,180,250,.15); color:var(--accent-blue);  }
+    .badge-cyan   { background:rgba(137,220,235,.15); color:var(--accent-cyan);  }
+    .badge-orange { background:rgba(250,179,135,.15); color:var(--accent-orange);  }
+
+    /* ── CARDS ── */
+    .card {
+      background:var(--bg-card);
+      border:1px solid rgba(137,180,250,.1);
+      border-radius:12px;
+      padding:22px 26px;
+    }
+    .card-row {
+      display:flex; gap:18px; width:100%; max-width:960px;
+    }
+    .card-row .card { flex:1; }
+
+    /* ── TWO COL ── */
+    .two-col {
+      display:flex; gap:18px; width:100%;
+    }
+    .two-col > div { flex:1; }
+
+    /* ── STEPS ── */
+    .steps { display:flex; flex-direction:column; gap:12px; }
+    .step {
+      display:flex; gap:12px; align-items:flex-start;
+    }
+    .step-num {
+      min-width:28px; height:28px; border-radius:50%;
+      background:var(--bg-code);
+      border:1px solid rgba(137,180,250,.25);
+      display:flex; align-items:center; justify-content:center;
+      font-family:'JetBrains Mono',monospace;
+      font-size:12px; font-weight:700;
+      color:var(--accent-blue);
+    }
+    .step-body { flex:1; }
+
+    /* ── CODE BLOCK ── */
+    pre.code-block {
+      background:var(--bg-code);
+      border:1px solid rgba(137,180,250,.12);
+      border-radius:10px;
+      padding:18px 22px;
+      font-family:'JetBrains Mono',monospace;
+      font-size:13px;
+      line-height:1.7;
+      color:var(--text-primary);
+      overflow-x:auto;
+      max-width:100%;
+      text-align:left;
+      white-space: pre;
+    }
+    .code-block .keyword { color:var(--accent-pink); }
+    .code-block .type { color:var(--accent-cyan); }
+    .code-block .string { color:var(--accent-green); }
+    .code-block .comment { color:var(--text-dim); font-style:italic; }
+    .code-block .annotation { color:var(--accent-yellow); }
+
+    /* ── DECORATIVE DOTS ── */
+    .deco-dots {
+      position:absolute; opacity:.15; pointer-events:none;
+    }
+
+    /* ── FLOW DIAGRAM ── */
+    .flow {
+      display:flex; align-items:center; gap:6px;
+      flex-wrap:wrap; justify-content:center;
+    }
+    .flow-node {
+      background:var(--bg-card);
+      border:1px solid rgba(137,180,250,.18);
+      border-radius:8px;
+      padding:10px 18px;
+      font-family:'JetBrains Mono',monospace;
+      font-size:13px; font-weight:600;
+      text-align:center;
+      min-width:140px;
+    }
+    .flow-node.order  { border-color:var(--accent-orange); color:var(--accent-orange); }
+    .flow-node.inv    { border-color:var(--accent-cyan);    color:var(--accent-cyan); }
+    .flow-node.notif  { border-color:var(--accent-yellow); color:var(--accent-yellow); }
+    .flow-node.rabbit { border-color:var(--accent-red); color:var(--accent-red); }
+    .flow-arrow       { color:var(--text-dim); font-size:20px; }
+    .flow-label       { font-size:10px; color:var(--text-dim); text-align:center; margin-top:4px; font-family:'JetBrains Mono',monospace; }
+
+    /* ── HIGHLIGHT BOX ── */
+    .highlight-box {
+      background:rgba(137,220,235,.08);
+      border-left:3px solid var(--accent-cyan);
+      border-radius:6px;
+      padding:14px 18px;
+      margin:12px 0;
+    }
+
+    /* ── JSON PREVIEW ── */
+    .json-preview {
+      background:var(--bg-code);
+      border:1px solid rgba(166,227,161,.2);
+      border-radius:8px;
+      padding:16px 20px;
+      font-family:'JetBrains Mono',monospace;
+      font-size:12px;
+      color:var(--text-primary);
+      white-space: pre;
+    }
+    .json-key { color:var(--accent-blue); }
+    .json-string { color:var(--accent-green); }
+    .json-number { color:var(--accent-orange); }
+
+    /* ── FAN OUT DIAGRAM ── */
+    .fan-out-container {
+      display:flex; align-items:center; justify-content:center; gap:20px;
+    }
+    .fan-right {
+      display:flex; flex-direction:column; gap:20px;
+    }
+    .branch-lines {
+      display:flex; flex-direction:column; justify-content:center; align-items:center;
+      width:40px; height:120px; position:relative;
+    }
+    .branch-line-top {
+      width:50%; height:50%; border-left:2px dashed var(--text-dim); border-bottom:2px dashed var(--text-dim);
+      position:absolute; top:0; left:0;
+    }
+    .branch-line-bottom {
+      width:50%; height:50%; border-left:2px dashed var(--text-dim); border-top:2px dashed var(--text-dim);
+      position:absolute; bottom:0; left:0;
+    }
+  </style>
+</head>
+<body>
+
+<div class="deck" id="deck">
+
+  <div class="slide" id="s1">
+    <svg class="deco-dots" style="top:-40px;right:-40px;width:280px;height:280px;" viewBox="0 0 240 240">
+      <defs><pattern id="dp1" x="0" y="0" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.6" fill="var(--accent-cyan)"/></pattern></defs>
+      <rect width="240" height="240" fill="url(#dp1)"/>
+    </svg>
+
+    <h1>Definiendo el Evento</h1>
+    <p style="color:var(--text-dim); margin-top:12px; text-align:center; font-size:15px; max-width:560px;">
+      El contrato completo: creando <code>OrderPlacedEvent</code> con Nested Records
+    </p>
+
+    <div class="corner-tag">9.3 / EVENTOS · INICIO</div>
+  </div>
+
+  <div class="slide" id="s2">
+    <div class="slide-label"><span>01</span> · Arquitectura</div>
+    <h2>El Patrón Fan-Out</h2>
+    <p class="dim" style="margin-bottom:18px;">Publica una vez, consume en múltiples lugares</p>
+
+    <div class="card" style="padding:40px 60px; border-color:rgba(137,180,250,.2);">
+      <div class="fan-out-container">
+
+        <div style="text-align:center;">
+          <div class="flow-node order" style="width:160px; height:60px; display:flex; align-items:center; justify-content:center;">Order Service</div>
+          <div class="flow-label">Publica Evento</div>
+        </div>
+
+        <div style="font-size:24px; color:var(--text-dim);">→</div>
+
+        <div style="text-align:center;">
+          <div class="flow-node rabbit" style="width:120px; height:120px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-direction:column;">
+            <span style="font-size:30px;">🐰</span>
+            <span style="margin-top:5px;">Fanout</span>
+          </div>
+        </div>
+
+        <div class="branch-lines">
+          <div class="branch-line-top"></div>
+          <div class="branch-line-bottom"></div>
+        </div>
+
+        <div class="fan-right">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="font-size:20px; color:var(--text-dim);">→</div>
+            <div class="flow-node inv" style="width:160px;">Inventory</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="font-size:20px; color:var(--text-dim);">→</div>
+            <div class="flow-node notif" style="width:160px;">Notification</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="two-col" style="max-width:800px; margin-top:24px; gap:20px;">
+      <div class="card" style="padding:16px; border-left:3px solid var(--accent-orange);">
+        <h3 style="font-size:14px; margin:0; color:var(--accent-orange);">Desacople Total</h3>
+        <p style="font-size:12px; margin-top:6px; color:var(--text-dim);">OrderService no sabe quién lo escucha. Solo "grita" el mensaje.</p>
+      </div>
+      <div class="card" style="padding:16px; border-left:3px solid var(--accent-green);">
+        <h3 style="font-size:14px; margin:0; color:var(--accent-green);">Paralelismo</h3>
+        <p style="font-size:12px; margin-top:6px; color:var(--text-dim);">Inventario y Notificaciones procesan el evento al mismo tiempo.</p>
+      </div>
+    </div>
+
+    <div class="corner-tag">9.3 / FAN-OUT</div>
+  </div>
+
+  <div class="slide" id="s3">
+    <div class="slide-label"><span>02</span> · El fundamento</div>
+    <h2>¿Por qué necesitamos un evento completo?</h2>
+    <p class="dim" style="margin-bottom:18px;">Evitando el re-acoplamiento</p>
+
+    <div class="two-col" style="max-width:900px;">
+      <div>
+        <div class="card" style="border-top:3px solid var(--accent-red);">
+          <h3 style="color:var(--accent-red);">❌ Evento incompleto</h3>
+          <p style="font-size:14px; margin-top:8px; margin-bottom:12px;">Solo enviamos el ID de la orden</p>
+          <div class="json-preview" style="font-size:11px;">
+            <span class="json-key">{</span>
+            <span class="json-key">"orderNumber"</span>: <span class="json-string">"ORD-123"</span>
+            <span class="json-key">}</span>
+          </div>
+          <div class="highlight-box" style="margin-top:12px; border-color:var(--accent-red); background:rgba(243,139,168,.08);">
+            <p style="font-size:13px;"><strong>Problema:</strong> Inventory tiene que llamar de vuelta a Order-Service. Esto es lento y frágil.</p>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="border-top:3px solid var(--accent-green);">
+          <h3 style="color:var(--accent-green);">✓ Evento completo</h3>
+          <p style="font-size:14px; margin-top:8px; margin-bottom:12px;">Payload autosuficiente</p>
+          <div class="json-preview" style="font-size:11px;">
+            <span class="json-key">{</span>
+            <span class="json-key">"orderNumber"</span>: <span class="json-string">"ORD-123"</span>,
+            <span class="json-key">"email"</span>: <span class="json-string">"user@email.com"</span>,
+            <span class="json-key">"items"</span>: [
+            {<span class="json-key">"sku"</span>: <span class="json-string">"iphone"</span>, <span class="json-key">"qty"</span>: <span class="json-number">2</span>}
+            ]
+            <span class="json-key">}</span>
+          </div>
+          <div class="highlight-box" style="margin-top:12px;">
+            <p style="font-size:13px;"><strong>Solución:</strong> Inventory tiene todo lo que necesita para trabajar solo.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="corner-tag">9.3 / FUNDAMENTO</div>
+  </div>
+
+  <div class="slide" id="s4">
+    <div class="slide-label"><span>03</span> · Diseño del Contrato</div>
+    <h2>¿Por qué usar Nested Records?</h2>
+    <p class="dim" style="margin-bottom:18px;">Estructura limpia y portable</p>
+
+    <div class="card-row" style="max-width:920px;">
+      <div class="card" style="border-top:3px solid var(--accent-cyan);">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+          <span class="badge badge-cyan">Principio 1</span>
+        </div>
+        <h3 style="color:var(--accent-cyan);">Alta Cohesión</h3>
+        <p style="font-size:14px; margin-top:8px;">
+          El "Item de Evento" <strong>no existe por sí solo</strong>. Depende totalmente del evento padre.
+          Anidarlo refleja esta relación fuerte.
+        </p>
+      </div>
+      <div class="card" style="border-top:3px solid var(--accent-blue);">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+          <span class="badge badge-blue">Principio 2</span>
+        </div>
+        <h3 style="color:var(--accent-blue);">Atomicidad</h3>
+        <p style="font-size:14px; margin-top:8px;">
+          Al tener todo en un solo archivo, garantizamos que la definición del esquema sea <strong>indivisible</strong>.
+          Quien tenga el evento, tiene la estructura completa.
+        </p>
+      </div>
+    </div>
+
+    <div class="corner-tag">9.3 / DISEÑO</div>
+  </div>
+
+  <div class="slide" id="s5">
+    <div class="slide-label"><span>04</span> · Implementación</div>
+    <h2>Creando el evento en Order-Service</h2>
+    <p class="dim" style="margin-bottom:16px;">Paquete: <code>com.ecommerce.orderservice.event</code></p>
+
+    <div style="max-width:880px; width:100%;">
+    <pre class="code-block" style="font-size:12px;"><code><span class="keyword">package</span> com.ecommerce.orderservice.event;
+
+<span class="keyword">import</span> java.util.List;
+
+<span class="comment">// Evento Principal: Representa el mensaje JSON raíz</span>
+<span class="keyword">public record</span> <span class="type">OrderPlacedEvent</span>(
+    <span class="type">String</span> orderNumber,
+    <span class="type">String</span> email,
+    <span class="type">List</span>&lt;<span class="type">OrderItemEvent</span>&gt; items
+) {
+
+    <span class="comment">// Record Anidado (Static Nested): Define la estructura</span>
+    <span class="comment">// de los objetos dentro del array.</span>
+    <span class="keyword">public record</span> <span class="type">OrderItemEvent</span>(
+        <span class="type">String</span> sku,
+        <span class="type">String</span> price,
+        <span class="type">Integer</span> quantity
+    ) {
+    }
+}</code></pre>
+    </div>
+
+    <div class="corner-tag">9.3 / CÓDIGO</div>
+  </div>
+
+  <div class="slide" id="s6">
+    <div class="slide-label"><span>05</span> · Pruebas</div>
+    <h2>Método main para pruebas</h2>
+    <p class="dim" style="margin-bottom:16px;">Validando la estructura in-situ</p>
+
+    <div style="max-width:900px; width:100%;">
+    <pre class="code-block" style="font-size:11px;"><code><span class="comment">// --- MÉTODO MAIN: SOLO PARA APRENDIZAJE ---</span>
+<span class="keyword">public static void</span> main(<span class="type">String</span>[] args) {
+    <span class="comment">// 1. Crear los items (accediendo al record estático interno)</span>
+    <span class="keyword">var</span> item1 = <span class="keyword">new</span> OrderPlacedEvent.OrderItemEvent(
+        <span class="string">"iphone-15"</span>, <span class="string">"1200.00"</span>, <span class="json-number">1</span>
+    );
+
+    <span class="comment">// 2. Crear el evento completo</span>
+    <span class="keyword">var</span> evento = <span class="keyword">new</span> OrderPlacedEvent(
+        <span class="string">"ORD-123"</span>,
+        <span class="string">"cliente@email.com"</span>,
+        List.of(item1)
+    );
+
+    <span class="comment">// 3. Simular la lectura</span>
+    System.out.println(<span class="string">"--- PROCESANDO EVENTO ---"</span>);
+    <span class="keyword">for</span> (OrderItemEvent item : evento.items()) {
+        System.out.println(<span class="string">"Descontando Stock -> SKU: "</span> +
+            item.sku());
+    }
+}</code></pre>
+    </div>
+
+    <div class="corner-tag">9.3 / CÓDIGO</div>
+  </div>
+
+  <div class="slide" id="s7">
+    <div class="slide-label"><span>06</span> · Distribución</div>
+    <h2>Compartiendo el contrato</h2>
+    <p class="dim" style="margin-bottom:18px;">Duplicación estratégica vs Librería compartida</p>
+
+    <div class="two-col" style="max-width:860px;">
+      <div>
+        <div class="card" style="border-left:3px solid var(--accent-cyan);">
+          <h3>📦 Inventory Service</h3>
+          <div class="steps" style="margin-top:12px;">
+            <div class="step">
+              <div class="step-num" style="color:var(--accent-cyan); border-color:rgba(137,220,235,.3);">1</div>
+              <div class="step-body"><p style="font-size:13px;">Crear paquete: <code>com.ecommerce.inventoryservice.event</code></p></div>
+            </div>
+            <div class="step">
+              <div class="step-num" style="color:var(--accent-cyan); border-color:rgba(137,220,235,.3);">2</div>
+              <div class="step-body"><p style="font-size:13px;">Copiar <code>OrderPlacedEvent.java</code></p></div>
+            </div>
+            <div class="step">
+              <div class="step-num" style="color:var(--accent-cyan); border-color:rgba(137,220,235,.3);">3</div>
+              <div class="step-body"><p style="font-size:13px;">Ajustar el <code>package</code></p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="border-left:3px solid var(--accent-yellow);">
+          <h3>📧 Notification Service</h3>
+          <div class="steps" style="margin-top:12px;">
+            <div class="step">
+              <div class="step-num" style="color:var(--accent-yellow); border-color:rgba(249,226,175,.3);">1</div>
+              <div class="step-body"><p style="font-size:13px;">Crear paquete: <code>com.ecommerce.notificationservice.event</code></p></div>
+            </div>
+            <div class="step">
+              <div class="step-num" style="color:var(--accent-yellow); border-color:rgba(249,226,175,.3);">2</div>
+              <div class="step-body"><p style="font-size:13px;">Copiar <code>OrderPlacedEvent.java</code></p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="corner-tag">9.3 / DISTRIBUCIÓN</div>
+  </div>
+
+  <div class="slide" id="s8">
+    <div class="slide-label"><span>Siguiente</span> · Clase 9.4</div>
+    <svg class="deco-dots" style="bottom:-50px;left:-30px;width:240px;height:240px;" viewBox="0 0 240 240">
+      <defs><pattern id="dp2" x="0" y="0" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.6" fill="var(--accent-cyan)"/></pattern></defs>
+      <rect width="240" height="240" fill="url(#dp2)"/>
+    </svg>
+
+    <div class="badge badge-cyan" style="margin-bottom:16px;">Próxima clase</div>
+    <h1>Ahora lo enviamos</h1>
+    <p style="color:var(--text-dim); margin-top:12px; text-align:center; font-size:15px; max-width:620px;">
+      Ya tenemos el "idioma" común definido. En la próxima clase refactorizaremos <code>Order-Service</code> para eliminar la llamada HTTP síncrona.
+    </p>
+
+    <div class="card" style="margin-top:26px; max-width:680px; padding:22px 28px;">
+      <h3>Contenido de la clase 9.4: Producer</h3>
+      <div class="steps" style="margin-top:14px;">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body"><p style="font-size:14px;">Eliminar Feign Client / WebClient</p></div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body"><p style="font-size:14px;">Implementar <code>RabbitTemplate.convertAndSend()</code></p></div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body"><p style="font-size:14px;">Verificar el mensaje en RabbitMQ Dashboard</p></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="corner-tag">9.3 / FIN</div>
+  </div>
+
+</div><div class="nav">
+  <button id="btnPrev" disabled>◀</button>
+  <div class="dots" id="dots"></div>
+  <button id="btnNext">▶</button>
+</div>
+
+<script>
+  const deck   = document.getElementById('deck');
+  const slides = document.querySelectorAll('.slide');
+  const total  = slides.length;
+  let current  = 0;
+
+  const dotsEl = document.getElementById('dots');
+  slides.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.onclick   = () => goTo(i);
+    dotsEl.appendChild(d);
+  });
+
+  function goTo(n) {
+    if (n < 0 || n >= total) return;
+    slides[current].classList.remove('active');
+    current = n;
+    slides[current].classList.add('active');
+    deck.style.transform = `translateX(-${current * 100}vw)`;
+    document.querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('active', i === current));
+    document.getElementById('btnPrev').disabled = current === 0;
+    document.getElementById('btnNext').disabled = current === total - 1;
+  }
+
+  document.getElementById('btnPrev').onclick = () => goTo(current - 1);
+  document.getElementById('btnNext').onclick = () => goTo(current + 1);
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown')  goTo(current + 1);
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')    goTo(current - 1);
+  });
+</script>
+</body>
+</html>

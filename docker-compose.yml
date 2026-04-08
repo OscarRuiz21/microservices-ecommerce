@@ -65,11 +65,25 @@ services:
     depends_on:
       - keycloak-db
 
+  rabbitmq:
+    image: rabbitmq:4.2-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"   # Puerto para comunicación entre microservicios
+      - "15672:15672" # Puerto para la consola de gestión web
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq # <--- ¡La persistencia!
+
 volumes:
   mongo_data:             # Declaramos el volumen persistente
   inventory_data:
   order_data:
   keycloak_data:
+  rabbitmq_data:
+
 #  # 2. Nuestra Aplicación (Product Service)
 #  product-service:
 #    build: .              # Usa el Dockerfile de la carpeta actual
@@ -82,6 +96,8 @@ volumes:
 #      - SPRING_DATA_MONGODB_URI=mongodb://root:password@mongodb:27017/product-db?authSource=admin
 #    depends_on:
 #      - mongodb           # Espera a que la BD arranque primero
+
+# docker command for rabbit mq: docker exec -it rabbitmq rabbitmq-plugins enable rabbitmq_shovel rabbitmq_shovel_management
 
 
 

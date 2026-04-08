@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Saga Pattern — Transacciones Distribuidas</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+
+    :root {
+      --bg-base:      #1e1e2e;
+      --bg-surface:   #2a2a3d;
+      --bg-card:      #252538;
+      --bg-code:      #1a1a2a;
+      --text-primary: #cdd6f4;
+      --text-dim:     #7f849c;
+      --text-white:   #f2f2f2;
+      --accent-green: #a6e3a1;
+      --accent-red:   #f38ba8;
+      --accent-yellow:#f9e2af;
+      --accent-blue:  #89b4fa;
+      --accent-cyan:  #89dceb;
+      --accent-pink:  #f38ba8;
+      --accent-orange:#fab387;
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    html, body {
+      width:100%; height:100%; overflow:hidden;
+      background:#111118;
+      font-family:'Inter', sans-serif;
+      color: var(--text-primary);
+      user-select:none;
+    }
+
+    /* ── SLIDES CONTAINER ── */
+    .deck {
+      display:flex;
+      width:100%;
+      height:100vh;
+      transition: transform .45s cubic-bezier(.4,0,.2,1);
+    }
+
+    .slide {
+      min-width:100vw;
+      height:100vh;
+      background: var(--bg-base);
+      position:relative;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      align-items:center;
+      padding: 48px 60px;
+      overflow:hidden;
+    }
+
+    /* ── NAV ── */
+    .nav {
+      position:fixed; bottom:28px; left:50%; transform:translateX(-50%);
+      display:flex; align-items:center; gap:14px;
+      background:rgba(30,30,46,.85); backdrop-filter:blur(12px);
+      border:1px solid rgba(137,180,250,.15);
+      border-radius:40px; padding:10px 22px;
+      z-index:100;
+    }
+    .nav button {
+      background:none; border:none; color:var(--text-dim);
+      font-size:20px; cursor:pointer; transition:color .2s;
+      font-family:'Inter',sans-serif;
+    }
+    .nav button:hover { color:var(--accent-blue); }
+    .nav button:disabled { opacity:.25; cursor:default; }
+    .dots { display:flex; gap:8px; }
+    .dot {
+      width:8px; height:8px; border-radius:50%;
+      background:var(--text-dim); transition:background .3s, transform .3s;
+      cursor:pointer;
+    }
+    .dot.active { background:var(--accent-blue); transform:scale(1.3); }
+
+    /* ── SLIDE LABELS ── */
+    .slide-label {
+      position:absolute; top:28px; left:40px;
+      font-family:'JetBrains Mono',monospace;
+      font-size:11px; color:var(--text-dim); letter-spacing:2px;
+      text-transform:uppercase;
+    }
+    .slide-label span { color:var(--accent-blue); }
+
+    /* ── CORNER TAG ── */
+    .corner-tag {
+      position:absolute; bottom:20px; right:24px;
+      font-family:'JetBrains Mono',monospace;
+      font-size:10px; color:var(--text-dim); letter-spacing:1.5px;
+      text-transform:uppercase;
+    }
+
+    /* ── TYPOGRAPHY ── */
+    h1 {
+      font-family:'JetBrains Mono',monospace;
+      font-size:38px; font-weight:700;
+      color:var(--text-white); line-height:1.2;
+      text-align:center;
+    }
+    h2 {
+      font-family:'JetBrains Mono',monospace;
+      font-size:26px; font-weight:600;
+      color:var(--text-white); margin-bottom:8px;
+    }
+    h3 {
+      font-family:'JetBrains Mono',monospace;
+      font-size:17px; font-weight:600;
+      color:var(--accent-cyan); margin-bottom:6px;
+    }
+    p, li {
+      font-size:15px; line-height:1.7; color:var(--text-primary);
+    }
+    .dim { color:var(--text-dim); font-size:13px; }
+    code {
+      font-family:'JetBrains Mono',monospace;
+      color:var(--accent-orange);
+      font-size:inherit;
+    }
+
+    p code, li code {
+       background:var(--bg-code);
+       padding:2px 7px;
+       border-radius:4px;
+       font-size:13px;
+    }
+
+    /* ── BADGES ── */
+    .badge {
+      display:inline-block;
+      font-family:'JetBrains Mono',monospace;
+      font-size:11px; font-weight:600;
+      padding:4px 10px; border-radius:20px;
+      letter-spacing:1px; text-transform:uppercase;
+    }
+    .badge-green  { background:rgba(166,227,161,.15); color:var(--accent-green); }
+    .badge-red    { background:rgba(243,139,168,.15); color:var(--accent-red);   }
+    .badge-yellow { background:rgba(249,226,175,.15); color:var(--accent-yellow);}
+    .badge-blue   { background:rgba(137,180,250,.15); color:var(--accent-blue);  }
+    .badge-cyan   { background:rgba(137,220,235,.15); color:var(--accent-cyan);  }
+    .badge-orange { background:rgba(250,179,135,.15); color:var(--accent-orange);  }
+
+    /* ── CARDS ── */
+    .card {
+      background:var(--bg-card);
+      border:1px solid rgba(137,180,250,.1);
+      border-radius:12px;
+      padding:22px 26px;
+    }
+    .card-row {
+      display:flex; gap:18px; width:100%; max-width:960px;
+    }
+    .card-row .card { flex:1; }
+
+    /* ── TWO COL ── */
+    .two-col {
+      display:flex; gap:18px; width:100%;
+    }
+    .two-col > div { flex:1; }
+
+    /* ── STEPS ── */
+    .steps { display:flex; flex-direction:column; gap:12px; }
+    .step {
+      display:flex; gap:12px; align-items:flex-start;
+    }
+    .step-num {
+      min-width:28px; height:28px; border-radius:50%;
+      background:var(--bg-code);
+      border:1px solid rgba(137,180,250,.25);
+      display:flex; align-items:center; justify-content:center;
+      font-family:'JetBrains Mono',monospace;
+      font-size:12px; font-weight:700;
+      color:var(--accent-blue);
+    }
+    .step-body { flex:1; }
+
+    /* ── CODE BLOCK ── */
+    pre.code-block {
+      background:var(--bg-code);
+      border:1px solid rgba(137,180,250,.12);
+      border-radius:10px;
+      padding:18px 22px;
+      font-family:'JetBrains Mono',monospace;
+      font-size:13px;
+      line-height:1.7;
+      color:var(--text-primary);
+      overflow-x:auto;
+      max-width:100%;
+      text-align:left;
+      white-space: pre;
+    }
+
+    /* ── DECORATIVE DOTS ── */
+    .deco-dots {
+      position:absolute; opacity:.15; pointer-events:none;
+    }
+
+    /* ── EMOJI ICONS ── */
+    .emoji-big {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    /* ── HIGHLIGHT BOX ── */
+    .highlight-box {
+      background: rgba(137,180,250,.08);
+      border-left: 3px solid var(--accent-blue);
+      padding: 16px 20px;
+      border-radius: 8px;
+      margin: 16px 0;
+    }
+
+    .highlight-box p {
+      font-size: 14px;
+      color: var(--text-primary);
+      margin: 0;
+    }
+
+    /* ── LIST STYLING ── */
+    ul {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    ul li {
+      padding-left: 24px;
+      position: relative;
+      margin-bottom: 8px;
+    }
+
+    ul li:before {
+      content: "▸";
+      position: absolute;
+      left: 0;
+      color: var(--accent-cyan);
+      font-weight: bold;
+    }
+
+  </style>
+</head>
+<body>
+
+<div class="deck" id="deck">
+
+  <!-- SLIDE 1: PORTADA -->
+  <div class="slide" id="s1">
+    <svg class="deco-dots" style="top:-40px;right:-40px;width:280px;height:280px;" viewBox="0 0 280 280">
+      <defs><pattern id="dp1" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.8" fill="var(--accent-blue)"/></pattern></defs>
+      <rect width="280" height="280" fill="url(#dp1)"/>
+    </svg>
+
+    <div class="badge badge-blue" style="margin-bottom:16px;">Microservicios</div>
+    <h1 style="margin-bottom:12px;">Saga Pattern</h1>
+    <p style="color:var(--text-dim); margin-top:8px; text-align:center; font-size:16px; max-width:680px;">
+      Gestionando transacciones distribuidas sin rollback mágico
+    </p>
+
+    <div class="corner-tag">FUNDAMENTOS</div>
+  </div>
+
+  <!-- SLIDE 2: ¿QUÉ ES SAGA? -->
+  <div class="slide" id="s2">
+    <div class="slide-label"><span>01</span> · Introducción</div>
+    <h2>🧠 ¿Qué es el Saga Pattern?</h2>
+    <p class="dim" style="margin-bottom:18px;">Una analogía con las vacaciones</p>
+
+    <div style="max-width:880px; width:100%;">
+      <p style="margin-bottom:16px;">
+        Imagina que estás organizando unas vacaciones. Tienes que reservar <strong>tres cosas</strong>:
+      </p>
+
+      <div class="card-row" style="margin-bottom:20px;">
+        <div class="card" style="border-top:3px solid var(--accent-blue);">
+          <div class="emoji-big" style="font-size:32px; margin-bottom:8px;">✈️</div>
+          <h3>Vuelo</h3>
+        </div>
+        <div class="card" style="border-top:3px solid var(--accent-cyan);">
+          <div class="emoji-big" style="font-size:32px; margin-bottom:8px;">🏨</div>
+          <h3>Hotel</h3>
+        </div>
+        <div class="card" style="border-top:3px solid var(--accent-green);">
+          <div class="emoji-big" style="font-size:32px; margin-bottom:8px;">🚗</div>
+          <h3>Alquiler de Auto</h3>
+        </div>
+      </div>
+
+      <div class="highlight-box">
+        <p>
+          <strong>En un sistema monolítico:</strong> hacías todo en una sola transacción de base de datos.
+          Si fallaba el auto, la base de datos hacía <code>Rollback</code> automático y borraba el vuelo y el hotel mágicamente. 
+          <strong>Todo o nada.</strong>
+        </p>
+      </div>
+    </div>
+
+    <div class="corner-tag">SAGA / CONCEPTO</div>
+  </div>
+
+  <!-- SLIDE 3: EL PROBLEMA -->
+  <div class="slide" id="s3">
+    <div class="slide-label"><span>02</span> · El Problema</div>
+    <h2>El Problema en Microservicios</h2>
+    <p class="dim" style="margin-bottom:18px;">No existe el rollback mágico entre servicios</p>
+
+    <div style="max-width:900px; width:100%;">
+      <p style="margin-bottom:16px;">
+        Como cada microservicio tiene <strong>su propia base de datos</strong>, no existe el Rollback mágico entre ellos.
+      </p>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <p><code>OrderService</code> guarda la orden en su BD...</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <p>Y luego <code>InventoryService</code> dice <strong>"No hay stock"</strong>...</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num" style="background:rgba(243,139,168,.15); border-color:var(--accent-red); color:var(--accent-red);">❌</div>
+          <div class="step-body">
+            <p><code>OrderService</code> <strong>no se entera automáticamente</strong>. La orden se queda ahí, "colgada" y el cliente cree que compró.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="highlight-box" style="margin-top:20px; border-left-color:var(--accent-red); background:rgba(243,139,168,.08);">
+        <p>
+          <strong>⚠️ Resultado:</strong> Datos inconsistentes entre servicios. El cliente ve una orden confirmada que nunca se procesó.
+        </p>
+      </div>
+    </div>
+
+    <div class="corner-tag">SAGA / PROBLEMA</div>
+  </div>
+
+  <!-- SLIDE 4: LA SOLUCIÓN -->
+  <div class="slide" id="s4">
+    <div class="slide-label"><span>03</span> · La Solución</div>
+    <h2>SAGA: Una historia de compensaciones</h2>
+    <p class="dim" style="margin-bottom:18px;">Si rompes algo, tienes que arreglarlo tú mismo</p>
+
+    <div style="max-width:860px; width:100%;">
+      <div class="card" style="border-left:3px solid var(--accent-cyan);">
+        <h3>Definición de Saga</h3>
+        <p style="margin-top:12px;">
+          Una Saga es una <strong>secuencia de transacciones locales</strong>. Si una falla, ejecutamos 
+          <strong>Transacciones de Compensación</strong> para deshacer lo que hicimos antes.
+        </p>
+      </div>
+
+      <div class="highlight-box" style="margin-top:24px;">
+        <p style="font-size:16px; font-weight:600;">
+          Saga = <em>"Si rompes algo, tienes que arreglarlo tú mismo."</em>
+        </p>
+      </div>
+
+      <div class="card-row" style="margin-top:24px;">
+        <div class="card" style="border-top:3px solid var(--accent-green);">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+            <span class="badge badge-green">Transacción Local</span>
+          </div>
+          <p style="font-size:14px;">Cada servicio hace su trabajo en su propia BD</p>
+        </div>
+        <div class="card" style="border-top:3px solid var(--accent-orange);">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+            <span class="badge badge-orange">Compensación</span>
+          </div>
+          <p style="font-size:14px;">Si algo falla, ejecuto la acción inversa para "deshacer"</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="corner-tag">SAGA / SOLUCIÓN</div>
+  </div>
+
+  <!-- SLIDE 5: TIPOS DE SAGA -->
+  <div class="slide" id="s5">
+    <div class="slide-label"><span>04</span> · Tipos de Saga</div>
+    <h2>🕺 Coreografía u Orquestación</h2>
+    <p class="dim" style="margin-bottom:18px;">Dos formas de implementar Sagas</p>
+
+    <div style="max-width:900px; width:100%;">
+      <p style="margin-bottom:20px;">
+        Existen dos formas de implementar Sagas. En nuestro curso estamos usando <strong>Coreografía</strong> (basada en Eventos), 
+        que es la más común con RabbitMQ.
+      </p>
+
+      <div class="two-col">
+        <div>
+          <div class="card" style="border-left:3px solid var(--accent-cyan);">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+              <span class="badge badge-cyan">Nuestro Enfoque</span>
+            </div>
+            <h3>1. Coreografía</h3>
+            <p style="margin-top:12px; margin-bottom:12px;">
+              Es como un <strong>baile donde nadie dirige</strong>. Cada bailarín (microservicio) conoce su paso y reacciona a la música (eventos).
+            </p>
+            <ul style="font-size:13px; margin-top:12px;">
+              <li><strong>Ventaja:</strong> Desacoplado y rápido</li>
+              <li><strong>Desventaja:</strong> Si son muchos pasos, el baile se vuelve caótico</li>
+            </ul>
+          </div>
+        </div>
+        <div>
+          <div class="card" style="border-left:3px solid var(--accent-yellow); opacity:0.6;">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+              <span class="badge badge-yellow">Alternativa</span>
+            </div>
+            <h3>2. Orquestación</h3>
+            <p style="margin-top:12px; margin-bottom:12px;">
+              Un <strong>director de orquesta</strong> coordina todos los pasos. Un servicio central dice qué hacer y cuándo.
+            </p>
+            <ul style="font-size:13px; margin-top:12px;">
+              <li><strong>Ventaja:</strong> Flujo centralizado y claro</li>
+              <li><strong>Desventaja:</strong> Acoplamiento al orquestador</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="corner-tag">SAGA / TIPOS</div>
+  </div>
+
+  <!-- SLIDE 6: COREOGRAFÍA EN DETALLE -->
+  <div class="slide" id="s6">
+    <div class="slide-label"><span>05</span> · Implementación</div>
+    <h2>Coreografía: Paso a Paso</h2>
+    <p class="dim" style="margin-bottom:18px;">Cómo funciona en nuestro e-commerce</p>
+
+    <div style="max-width:920px; width:100%;">
+      <div class="steps">
+        <div class="step">
+          <div class="step-num" style="color:var(--accent-blue); border-color:rgba(137,180,250,.3);">1</div>
+          <div class="step-body">
+            <h3 style="color:var(--accent-blue); margin-bottom:4px;">Paso 1: Orden Creada</h3>
+            <p><code>OrderService</code> crea la orden y grita: <strong>"¡Orden Creada!"</strong> (Evento)</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num" style="color:var(--accent-cyan); border-color:rgba(137,220,235,.3);">2</div>
+          <div class="step-body">
+            <h3 style="color:var(--accent-cyan); margin-bottom:4px;">Paso 2: Verificación de Stock</h3>
+            <p style="margin-bottom:8px;"><code>InventoryService</code> escucha y verifica stock:</p>
+            <ul style="font-size:14px;">
+              <li><strong>Si hay stock:</strong> Grita "¡Stock Reservado!" ✅</li>
+              <li><strong>Si NO hay stock (Fallo):</strong> Grita "¡Fallo de Inventario!" ❌<br/>
+                <span class="dim">(Este es el inicio de la compensación)</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num" style="color:var(--accent-orange); border-color:rgba(250,179,135,.3);">3</div>
+          <div class="step-body">
+            <h3 style="color:var(--accent-orange); margin-bottom:4px;">Paso 3: Compensación</h3>
+            <p style="margin-bottom:8px;">Cuando escuchan "Fallo de Inventario":</p>
+            <ul style="font-size:14px;">
+              <li><code>OrderService</code> → <strong>Acción:</strong> Cambia estado a <code>CANCELLED</code> en su BD</li>
+              <li><code>NotificationService</code> → <strong>Acción:</strong> Envía email de "Lo sentimos"</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="corner-tag">SAGA / COREOGRAFÍA</div>
+  </div>
+
+  <!-- SLIDE 7: DIAGRAMA VISUAL -->
+  <div class="slide" id="s7">
+    <div class="slide-label"><span>06</span> · Flujo Visual</div>
+    <h2>Flujo Completo: Caso de Fallo</h2>
+    <p class="dim" style="margin-bottom:18px;">Cuando no hay stock disponible</p>
+
+    <div style="max-width:880px; width:100%;">
+      <div class="card" style="padding:30px;">
+        <div style="display:flex; flex-direction:column; gap:20px;">
+          
+          <!-- Paso 1 -->
+          <div style="display:flex; align-items:center; gap:16px;">
+            <div style="background:rgba(137,180,250,.15); padding:12px 20px; border-radius:8px; min-width:180px;">
+              <strong>OrderService</strong>
+            </div>
+            <div style="flex:1; height:2px; background:var(--accent-blue);"></div>
+            <div style="background:var(--bg-code); padding:8px 16px; border-radius:6px; border:1px solid var(--accent-blue);">
+              📢 "Orden Creada"
+            </div>
+          </div>
+
+          <!-- Paso 2 -->
+          <div style="display:flex; align-items:center; gap:16px;">
+            <div style="background:rgba(137,220,235,.15); padding:12px 20px; border-radius:8px; min-width:180px;">
+              <strong>InventoryService</strong>
+            </div>
+            <div style="flex:1; height:2px; background:var(--accent-red); border-style:dashed;"></div>
+            <div style="background:var(--bg-code); padding:8px 16px; border-radius:6px; border:1px solid var(--accent-red);">
+              ❌ "Fallo de Inventario"
+            </div>
+          </div>
+
+          <!-- Compensación 1 -->
+          <div style="display:flex; align-items:center; gap:16px; margin-left:40px;">
+            <div style="background:rgba(250,179,135,.15); padding:12px 20px; border-radius:8px; min-width:180px;">
+              <strong>OrderService</strong>
+            </div>
+            <div style="flex:1; height:2px; background:var(--accent-orange);"></div>
+            <div style="background:var(--bg-code); padding:8px 16px; border-radius:6px; border:1px solid var(--accent-orange); font-size:13px;">
+              🔄 Estado → CANCELLED
+            </div>
+          </div>
+
+          <!-- Compensación 2 -->
+          <div style="display:flex; align-items:center; gap:16px; margin-left:40px;">
+            <div style="background:rgba(249,226,175,.15); padding:12px 20px; border-radius:8px; min-width:180px;">
+              <strong>NotificationService</strong>
+            </div>
+            <div style="flex:1; height:2px; background:var(--accent-yellow);"></div>
+            <div style="background:var(--bg-code); padding:8px 16px; border-radius:6px; border:1px solid var(--accent-yellow); font-size:13px;">
+              📧 Email "Lo sentimos"
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="highlight-box" style="margin-top:20px;">
+        <p>
+          <strong>Resultado:</strong> El sistema vuelve a un estado consistente. El cliente recibe una notificación clara del problema.
+        </p>
+      </div>
+    </div>
+
+    <div class="corner-tag">SAGA / FLUJO</div>
+  </div>
+
+  <!-- SLIDE 8: RESUMEN -->
+  <div class="slide" id="s8">
+    <div class="slide-label"><span>07</span> · Conclusión</div>
+    <svg class="deco-dots" style="bottom:-50px;left:-30px;width:240px;height:240px;" viewBox="0 0 240 240">
+      <defs><pattern id="dp2" x="0" y="0" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.6" fill="var(--accent-cyan)"/></pattern></defs>
+      <rect width="240" height="240" fill="url(#dp2)"/>
+    </svg>
+
+    <div class="badge badge-cyan" style="margin-bottom:16px;">Puntos Clave</div>
+    <h1>Saga Pattern en Resumen</h1>
+
+    <div class="card" style="margin-top:26px; max-width:760px; padding:28px 32px;">
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">✅</div>
+          <div class="step-body">
+            <p><strong>Saga Pattern</strong> resuelve transacciones distribuidas sin rollback mágico</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">🔄</div>
+          <div class="step-body">
+            <p>Usa <strong>transacciones de compensación</strong> para deshacer cambios cuando algo falla</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">🕺</div>
+          <div class="step-body">
+            <p><strong>Coreografía</strong> (eventos) es ideal para sistemas desacoplados con RabbitMQ</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">⚠️</div>
+          <div class="step-body">
+            <p>Cada servicio debe <strong>reaccionar a eventos de fallo</strong> y compensar sus acciones</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p style="color:var(--text-dim); margin-top:20px; text-align:center; font-size:14px; max-width:620px;">
+      En microservicios, la consistencia eventual es aceptable. Lo importante es que el sistema 
+      <strong>siempre vuelva a un estado válido</strong>.
+    </p>
+
+    <div class="corner-tag">SAGA / FIN</div>
+  </div>
+
+</div>
+
+<div class="nav">
+  <button id="btnPrev" disabled>◀</button>
+  <div class="dots" id="dots"></div>
+  <button id="btnNext">▶</button>
+</div>
+
+<script>
+  const deck   = document.getElementById('deck');
+  const slides = document.querySelectorAll('.slide');
+  const total  = slides.length;
+  let current  = 0;
+
+  const dotsEl = document.getElementById('dots');
+  slides.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.onclick   = () => goTo(i);
+    dotsEl.appendChild(d);
+  });
+
+  function goTo(n) {
+    if (n < 0 || n >= total) return;
+    slides[current].classList.remove('active');
+    current = n;
+    slides[current].classList.add('active');
+    deck.style.transform = `translateX(-${current * 100}vw)`;
+    document.querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('active', i === current));
+    document.getElementById('btnPrev').disabled = current === 0;
+    document.getElementById('btnNext').disabled = current === total - 1;
+  }
+
+  document.getElementById('btnPrev').onclick = () => goTo(current - 1);
+  document.getElementById('btnNext').onclick = () => goTo(current + 1);
+
+  // Keyboard navigation
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft') goTo(current - 1);
+    if (e.key === 'ArrowRight') goTo(current + 1);
+  });
+</script>
+
+</body>
+</html>
