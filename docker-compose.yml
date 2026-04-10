@@ -76,6 +76,14 @@ services:
       RABBITMQ_DEFAULT_PASS: guest
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq # <--- ¡La persistencia!
+  grafana-lgtm:
+    image: 'grafana/otel-lgtm:latest'
+    ports:
+      - '3000:3000'
+      - '4317:4317' # entrada 1: grpc (no se usa)
+      - '4318:4318' # entrada 2: http para recibir paquetes de logs, metricas, etc
+    environment:
+      - OTEL_METRIC_EXPORT_INTERVAL=5000
 
 volumes:
   mongo_data:             # Declaramos el volumen persistente

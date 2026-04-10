@@ -34,7 +34,7 @@ public class RabbitMQConfig {
         Map<String, Class<?>> idClassMapping = new HashMap<>();
 
         // Si viene un 'OrderPlacedEvent' desde Inventario, lo tratamos como 'OrderConfirmedEvent' local
-        idClassMapping.put("com.ecommerce.inventory_service.event.OrderPlacedEvent", OrderConfirmedEvent.class);
+        idClassMapping.put("com.ecommerce.inventory_service.event.OrderConfirmedEvent", OrderConfirmedEvent.class);
 
         // Si viene una cancelación, la mapeamos a nuestra clase local de cancelación
         idClassMapping.put("com.ecommerce.inventory_service.event.OrderCancelledEvent", OrderCancelledEvent.class);

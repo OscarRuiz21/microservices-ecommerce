@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/base.xml"/>
+    <appender name="OTEL" class="io.opentelemetry.instrumentation.logback.appender.v1_0.OpenTelemetryAppender"/>
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="OTEL"/>
+    </root>
+</configuration>
+
+        <!--        🪜 La Escalera de Niveles-->
+        <!--        ERROR 🔴: "¡Algo se rompió!". Fallos críticos que detienen una operación (ej: la base de datos no responde).-->
+
+        <!--        WARN ⚠️: "Cuidado, algo raro pasó". Problemas que no detienen la app, pero hay que revisar (ej: un tiempo de respuesta lento o una configuración vieja).-->
+
+        <!--        INFO ℹ️: "Todo marcha bien". Es el estándar. Informa eventos importantes (ej: "Usuario inició sesión" o "Microservicio arrancado").-->
+
+        <!--        DEBUG 🔍: "Detalles técnicos". Información para nosotros, los programadores, mientras desarrollamos (ej: "Consultando el ID 5 en la tabla pedidos").-->
+
+        <!--        TRACE 🔬: "La lupa total". El nivel más ruidoso. Muestra el paso a paso interno del código, línea por línea.-->

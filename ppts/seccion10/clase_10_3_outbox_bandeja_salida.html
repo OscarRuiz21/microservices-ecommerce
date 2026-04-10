@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clase 10.3 — Transactional Outbox: La Bandeja de Salida</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+
+    :root {
+      --bg-base:      #1e1e2e;
+      --bg-surface:   #2a2a3d;
+      --bg-card:      #252538;
+      --bg-code:      #1a1a2a;
+      --text-primary: #cdd6f4;
+      --text-dim:     #7f849c;
+      --text-white:   #f2f2f2;
+      --accent-green: #a6e3a1;
+      --accent-red:   #f38ba8;
+      --accent-yellow:#f9e2af;
+      --accent-blue:  #89b4fa;
+      --accent-cyan:  #89dceb;
+      --accent-pink:  #f38ba8;
+      --accent-orange:#fab387;
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    html, body {
+      width:100%; height:100%; overflow:hidden;
+      background:#111118;
+      font-family:'Inter', sans-serif;
+      color: var(--text-primary);
+      user-select:none;
+    }
+
+    /* ── SLIDES CONTAINER ── */
+    .deck {
+      display:flex;
+      width:100%;
+      height:100vh;
+      transition: transform .45s cubic-bezier(.4,0,.2,1);
+    }
+
+    .slide {
+      min-width:100vw;
+      height:100vh;
+      background: var(--bg-base);
+      position:relative;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      align-items:center;
+      padding: 48px 60px;
+      overflow:hidden;
+    }
+
+    /* ── NAV ── */
+    .nav {
+      position:fixed; bottom:28px; left:50%; transform:translateX(-50%);
+      display:flex; align-items:center; gap:14px;
+      background:rgba(30,30,46,.85); backdrop-filter:blur(12px);
+      border:1px solid rgba(137,180,250,.15);
+      border-radius:40px; padding:10px 22px;
+      z-index:100;
+    }
+    .nav button {
+      background:none; border:none; color:var(--text-dim);
+      font-size:20px; cursor:pointer; transition:color .2s;
+      font-family:'Inter',sans-serif;
+    }
+    .nav button:hover { color:var(--accent-blue); }
+    .nav button:disabled { opacity:.25; cursor:default; }
+    .dots { display:flex; gap:8px; }
+    .dot {
+      width:8px; height:8px; border-radius:50%;
+      background:var(--text-dim); transition:background .3s, transform .3s;
+      cursor:pointer;
+    }
+    .dot.active { background:var(--accent-blue); transform:scale(1.3); }
+
+    /* ── SLIDE LABELS ── */
+    .slide-label {
+      position:absolute; top:28px; left:40px;
+      font-family:'JetBrains Mono',monospace;
+      font-size:11px; color:var(--text-dim); letter-spacing:2px;
+      text-transform:uppercase;
+    }
+    .slide-label span { color:var(--accent-blue); }
+
+    /* ── CORNER TAG ── */
+    .corner-tag {
+      position:absolute; bottom:20px; right:24px;
+      font-family:'JetBrains Mono',monospace;
+      font-size:10px; color:var(--text-dim); letter-spacing:1.5px;
+      text-transform:uppercase;
+    }
+
+    /* ── TYPOGRAPHY ── */
+    h1 {
+      font-family:'JetBrains Mono',monospace;
+      font-size:38px; font-weight:700;
+      color:var(--text-white); line-height:1.2;
+      text-align:center;
+    }
+    h2 {
+      font-family:'JetBrains Mono',monospace;
+      font-size:26px; font-weight:600;
+      color:var(--text-white); margin-bottom:8px;
+    }
+    h3 {
+      font-family:'JetBrains Mono',monospace;
+      font-size:17px; font-weight:600;
+      color:var(--accent-cyan); margin-bottom:6px;
+    }
+    p, li {
+      font-size:15px; line-height:1.7; color:var(--text-primary);
+    }
+    .dim { color:var(--text-dim); font-size:13px; }
+    code {
+      font-family:'JetBrains Mono',monospace;
+      color:var(--accent-orange);
+      font-size:inherit;
+    }
+
+    p code, li code {
+       background:var(--bg-code);
+       padding:2px 7px;
+       border-radius:4px;
+       font-size:13px;
+    }
+
+    /* ── BADGES ── */
+    .badge {
+      display:inline-block;
+      font-family:'JetBrains Mono',monospace;
+      font-size:11px; font-weight:600;
+      padding:4px 10px; border-radius:20px;
+      letter-spacing:1px; text-transform:uppercase;
+    }
+    .badge-green  { background:rgba(166,227,161,.15); color:var(--accent-green); }
+    .badge-red    { background:rgba(243,139,168,.15); color:var(--accent-red);   }
+    .badge-yellow { background:rgba(249,226,175,.15); color:var(--accent-yellow);}
+    .badge-blue   { background:rgba(137,180,250,.15); color:var(--accent-blue);  }
+    .badge-cyan   { background:rgba(137,220,235,.15); color:var(--accent-cyan);  }
+    .badge-orange { background:rgba(250,179,135,.15); color:var(--accent-orange);  }
+
+    /* ── CARDS ── */
+    .card {
+      background:var(--bg-card);
+      border:1px solid rgba(137,180,250,.1);
+      border-radius:12px;
+      padding:22px 26px;
+    }
+
+    /* ── STEPS ── */
+    .steps { display:flex; flex-direction:column; gap:12px; }
+    .step {
+      display:flex; gap:12px; align-items:flex-start;
+    }
+    .step-num {
+      min-width:28px; height:28px; border-radius:50%;
+      background:var(--bg-code);
+      border:1px solid rgba(137,180,250,.25);
+      display:flex; align-items:center; justify-content:center;
+      font-family:'JetBrains Mono',monospace;
+      font-size:12px; font-weight:700;
+      color:var(--accent-blue);
+    }
+    .step-body { flex:1; }
+
+    /* ── CODE BLOCK ── */
+    pre.code-block {
+      background:var(--bg-code);
+      border:1px solid rgba(137,180,250,.12);
+      border-radius:10px;
+      padding:18px 22px;
+      font-family:'JetBrains Mono',monospace;
+      font-size:13px;
+      line-height:1.7;
+      color:var(--text-primary);
+      overflow-x:auto;
+      max-width:100%;
+      text-align:left;
+      white-space: pre;
+    }
+    .code-block .keyword { color:var(--accent-pink); }
+    .code-block .string { color:var(--accent-green); }
+    .code-block .comment { color:var(--text-dim); font-style:italic; }
+    .code-block .type { color:var(--accent-cyan); }
+    .code-block .annotation { color:var(--accent-yellow); }
+
+    /* ── HIGHLIGHT BOX ── */
+    .highlight-box {
+      background: rgba(137,180,250,.08);
+      border-left: 3px solid var(--accent-blue);
+      padding: 16px 20px;
+      border-radius: 8px;
+      margin: 16px 0;
+    }
+
+    .highlight-box p {
+      font-size: 14px;
+      color: var(--text-primary);
+    }
+
+    /* ── DECORATIVE DOTS ── */
+    .deco-dots {
+      position:absolute; opacity:.15; pointer-events:none;
+    }
+
+    /* ── FLOW BOXES ── */
+    .flow-container {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin: 24px 0;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .flow-box {
+      background: var(--bg-card);
+      border: 2px solid rgba(137,180,250,.2);
+      border-radius: 12px;
+      padding: 20px 24px;
+      min-width: 160px;
+      text-align: center;
+    }
+
+    .flow-arrow {
+      font-size: 24px;
+      color: var(--accent-blue);
+    }
+
+    /* ── COMPARISON TABLE ── */
+    .comparison {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      width: 100%;
+      max-width: 900px;
+      margin: 20px 0;
+    }
+  </style>
+</head>
+<body>
+
+<div class="deck" id="deck">
+
+  <!-- SLIDE 1: PORTADA -->
+  <div class="slide" id="s1">
+    <svg class="deco-dots" style="top:-40px;right:-40px;width:280px;height:280px;" viewBox="0 0 280 280">
+      <defs><pattern id="dp1" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.8" fill="var(--accent-cyan)"/></pattern></defs>
+      <rect width="280" height="280" fill="url(#dp1)"/>
+    </svg>
+
+    <div class="badge badge-cyan" style="margin-bottom:14px;">Sección 10 · Clase 10.3</div>
+    <h1 style="margin-bottom:12px;">Transactional Outbox:<br/>La Bandeja de Salida</h1>
+    <p class="dim" style="font-size:14px; text-align:center;">
+      Eliminando el acoplamiento con RabbitMQ para que la venta nunca se detenga
+    </p>
+
+    <div style="margin-top:32px; display:flex; gap:14px;">
+      <div class="badge badge-blue">⏱️ 6 min</div>
+      <div class="badge badge-cyan">🏛️ Patrón Arquitectónico</div>
+    </div>
+
+    <div class="corner-tag">Resiliencia</div>
+  </div>
+
+  <!-- SLIDE 2: EL PROBLEMA -->
+  <div class="slide" id="s2">
+    <div class="slide-label"><span>01</span> · El Problema</div>
+    <h2>La Verdad Dolorosa</h2>
+    <p class="dim" style="margin-bottom:18px;">Si RabbitMQ cae, la tienda deja de vender</p>
+
+    <div style="max-width:900px; width:100%;">
+      <p style="margin-bottom:20px;">
+        En la clase anterior vimos que cuando RabbitMQ se cae, el <code>@Transactional</code> 
+        hace rollback y <strong>la venta no se completa</strong>.
+      </p>
+
+      <div class="comparison">
+        <div class="card" style="border-left:3px solid var(--accent-red);">
+          <h3>❌ Antes (Sistema Bloqueado)</h3>
+          <div class="steps" style="margin-top:12px;">
+            <div class="step">
+              <div class="step-num" style="color:var(--accent-red); border-color:rgba(243,139,168,.3);">1</div>
+              <div class="step-body">
+                <p style="font-size:14px;">Cliente intenta comprar</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num" style="color:var(--accent-red); border-color:rgba(243,139,168,.3);">2</div>
+              <div class="step-body">
+                <p style="font-size:14px;">RabbitMQ está caído</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num" style="color:var(--accent-red); border-color:rgba(243,139,168,.3);">3</div>
+              <div class="step-body">
+                <p style="font-size:14px;"><strong>Rollback → Venta rechazada</strong></p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="border-left:3px solid var(--accent-green);">
+          <h3>✅ Con Outbox (Resiliente)</h3>
+          <div class="steps" style="margin-top:12px;">
+            <div class="step">
+              <div class="step-num" style="color:var(--accent-green); border-color:rgba(166,227,161,.3);">1</div>
+              <div class="step-body">
+                <p style="font-size:14px;">Cliente intenta comprar</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num" style="color:var(--accent-green); border-color:rgba(166,227,161,.3);">2</div>
+              <div class="step-body">
+                <p style="font-size:14px;">Mensaje guardado en DB</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num" style="color:var(--accent-green); border-color:rgba(166,227,161,.3);">3</div>
+              <div class="step-body">
+                <p style="font-size:14px;"><strong>Venta completada ✓</strong></p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="corner-tag">10.3 / PROBLEMA</div>
+  </div>
+
+  <!-- SLIDE 3: LA ANALOGÍA -->
+  <div class="slide" id="s3">
+    <div class="slide-label"><span>02</span> · La Analogía</div>
+    <h2>Como un Email en tu Bandeja de Salida</h2>
+    <p class="dim" style="margin-bottom:16px;">Una metáfora que todos entendemos</p>
+
+    <div style="max-width:900px; width:100%;">
+      <div class="card" style="border-top:3px solid var(--accent-cyan);">
+        <h3>📮 La Bandeja de Salida</h3>
+        <p style="margin-top:12px; font-size:15px; line-height:1.8;">
+          Cuando escribes un email sin internet, tu cliente de correo <strong>no falla</strong>. 
+          En su lugar, guarda el email en la <strong>"Bandeja de Salida"</strong> y lo envía 
+          automáticamente cuando recuperas conexión.
+        </p>
+      </div>
+
+      <div class="flow-container" style="margin-top:24px;">
+        <div class="flow-box" style="border-color:rgba(137,220,235,.3);">
+          <p style="font-size:14px; font-weight:600; color:var(--accent-cyan);">✍️ Escribir Email</p>
+          <p style="font-size:12px; color:var(--text-dim); margin-top:4px;">Cliente crea pedido</p>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-box" style="border-color:rgba(137,220,235,.3);">
+          <p style="font-size:14px; font-weight:600; color:var(--accent-cyan);">💾 Bandeja Salida</p>
+          <p style="font-size:12px; color:var(--text-dim); margin-top:4px;">Tabla outbox_events</p>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-box" style="border-color:rgba(166,227,161,.3);">
+          <p style="font-size:14px; font-weight:600; color:var(--accent-green);">📤 Envío Posterior</p>
+          <p style="font-size:12px; color:var(--text-dim); margin-top:4px;">Cuando Rabbit vuelva</p>
+        </div>
+      </div>
+
+      <div class="highlight-box" style="margin-top:20px; border-left-color:var(--accent-green);">
+        <p>
+          <strong>💡 La Idea Central:</strong> En lugar de intentar enviar el evento a RabbitMQ 
+          mientras el cliente espera, lo guardamos en una tabla dentro de PostgreSQL. 
+          <strong>Si la base de datos funciona, la venta se completa.</strong>
+        </p>
+      </div>
+    </div>
+
+    <div class="corner-tag">10.3 / CONCEPTO</div>
+  </div>
+
+  <!-- SLIDE 4: PASO 1 - GUARDADO ATÓMICO -->
+  <div class="slide" id="s4">
+    <div class="slide-label"><span>03</span> · Paso 1</div>
+    <h2>El Guardado Atómico</h2>
+    <p class="dim" style="margin-bottom:16px;">Todo en una sola transacción</p>
+
+    <div style="max-width:900px; width:100%;">
+      <p style="margin-bottom:20px;">
+        Dentro de un mismo <code>@Transactional</code>, guardamos <strong>dos cosas</strong>:
+      </p>
+
+      <div class="card" style="border-left:3px solid var(--accent-blue);">
+        <h3>Atomicidad Total</h3>
+        <div class="steps" style="margin-top:12px;">
+          <div class="step">
+            <div class="step-num" style="color:var(--accent-blue); border-color:rgba(137,180,250,.3);">1</div>
+            <div class="step-body">
+              <p style="font-size:14px;">
+                <strong>El Pedido</strong> en la tabla <code>t_orders</code>
+              </p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="color:var(--accent-blue); border-color:rgba(137,180,250,.3);">2</div>
+            <div class="step-body">
+              <p style="font-size:14px;">
+                <strong>El Evento</strong> en la tabla <code>outbox_events</code> (JSON del mensaje)
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <pre class="code-block" style="margin-top:20px; font-size:12px;"><code><span class="annotation">@Transactional</span>
+<span class="keyword">public</span> <span class="type">OrderResponse</span> <span class="keyword">placeOrder</span>(<span class="type">OrderRequest</span> request) {
+    <span class="comment">// 1. Guardar el pedido</span>
+    <span class="type">Order</span> order = orderRepository.save(newOrder);
+    
+    <span class="comment">// 2. Guardar el evento en Outbox (NO enviarlo a RabbitMQ)</span>
+    <span class="type">OutboxEvent</span> event = <span class="keyword">new</span> <span class="type">OutboxEvent</span>(order, <span class="string">"PENDING"</span>);
+    outboxRepository.save(event);
+    
+    <span class="comment">// ✅ COMMIT - Ambas cosas están seguras</span>
+    <span class="keyword">return</span> toResponse(order);
+}</code></pre>
+
+      <div class="highlight-box" style="margin-top:20px; border-left-color:var(--accent-green);">
+        <p>
+          <strong>✅ Garantía ACID:</strong> Si PostgreSQL dice 'OK', ambas cosas se guardaron. 
+          Si falla, ninguna. <strong>RabbitMQ ya no participa en la transacción.</strong>
+        </p>
+      </div>
+    </div>
+
+    <div class="corner-tag">10.3 / PASO 1</div>
+  </div>
+
+  <!-- SLIDE 5: PASO 2 - DESACOPLAMIENTO -->
+  <div class="slide" id="s5">
+    <div class="slide-label"><span>04</span> · Paso 2</div>
+    <h2>El Desacoplamiento Total</h2>
+    <p class="dim" style="margin-bottom:16px;">RabbitMQ ya no puede bloquear el negocio</p>
+
+    <div style="max-width:900px; width:100%;">
+      <p style="margin-bottom:20px;">
+        El microservicio <strong>ya no necesita que RabbitMQ esté vivo</strong> para terminar su tarea con éxito.
+      </p>
+
+      <div class="card" style="border-top:3px solid var(--accent-yellow);">
+        <h3>🔓 Independencia Total</h3>
+        <p style="margin-top:12px; margin-bottom:16px;">
+          Ahora el flujo es completamente diferente:
+        </p>
+        <div class="flow-container">
+          <div class="flow-box" style="border-color:rgba(137,180,250,.3);">
+            <p style="font-size:14px; font-weight:600; color:var(--accent-blue);">📦 Order Service</p>
+            <p style="font-size:12px; color:var(--text-dim); margin-top:4px;">Guarda y responde</p>
+          </div>
+          <div class="flow-arrow" style="color:var(--text-dim);">⊥</div>
+          <div class="flow-box" style="border-color:rgba(127,132,156,.3);">
+            <p style="font-size:14px; font-weight:600; color:var(--text-dim);">🐰 RabbitMQ</p>
+            <p style="font-size:12px; color:var(--text-dim); margin-top:4px;">Caído? No importa</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px; border-left:3px solid var(--accent-green);">
+        <h3>✅ Beneficios Inmediatos</h3>
+        <div class="steps" style="margin-top:12px;">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-body">
+              <p style="font-size:14px;">La venta se completa <strong>siempre</strong> (si la DB funciona)</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-body">
+              <p style="font-size:14px;">Cliente recibe <code>201 Created</code> inmediatamente</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-body">
+              <p style="font-size:14px;">El mensaje está <strong>"asegurado"</strong> en la base de datos</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="corner-tag">10.3 / PASO 2</div>
+  </div>
+
+  <!-- SLIDE 6: PASO 3 - ESTRUCTURA -->
+  <div class="slide" id="s6">
+    <div class="slide-label"><span>05</span> · Paso 3</div>
+    <h2>La Estructura de la Tabla</h2>
+    <p class="dim" style="margin-bottom:16px;">Qué campos necesita nuestra Bandeja de Salida</p>
+
+    <div style="max-width:900px; width:100%;">
+      <p style="margin-bottom:16px;">
+        Aunque implementaremos la entidad en la próxima clase, así es como se verá 
+        <strong>la estructura que nos salvará el negocio</strong>:
+      </p>
+
+      <pre class="code-block" style="font-size:12px;"><code><span class="keyword">CREATE TABLE</span> outbox_events (
+    id           <span class="type">BIGSERIAL PRIMARY KEY</span>,
+    aggregate_id <span class="type">VARCHAR(255)</span> <span class="keyword">NOT NULL</span>,  <span class="comment">-- orderNumber</span>
+    event_type   <span class="type">VARCHAR(100)</span> <span class="keyword">NOT NULL</span>,  <span class="comment">-- "OrderPlacedEvent"</span>
+    payload      <span class="type">TEXT</span> <span class="keyword">NOT NULL</span>,          <span class="comment">-- JSON del evento</span>
+    status       <span class="type">VARCHAR(20)</span> <span class="keyword">NOT NULL</span>,   <span class="comment">-- PENDING / PROCESSED</span>
+    created_at   <span class="type">TIMESTAMP</span> <span class="keyword">NOT NULL</span>,
+    processed_at <span class="type">TIMESTAMP</span>
+);</code></pre>
+
+      <div class="card" style="margin-top:20px; border-top:3px solid var(--accent-cyan);">
+        <h3>Campos Clave</h3>
+        <div class="steps" style="margin-top:12px;">
+          <div class="step">
+            <div class="step-num" style="color:var(--accent-cyan); border-color:rgba(137,220,235,.3);">📦</div>
+            <div class="step-body">
+              <p style="font-size:14px;"><strong>payload:</strong> El JSON completo del evento (para enviarlo después)</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="color:var(--accent-cyan); border-color:rgba(137,220,235,.3);">🏷️</div>
+            <div class="step-body">
+              <p style="font-size:14px;"><strong>status:</strong> <code>PENDING</code> o <code>PROCESSED</code> (para no repetir envíos)</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="color:var(--accent-cyan); border-color:rgba(137,220,235,.3);">🔗</div>
+            <div class="step-body">
+              <p style="font-size:14px;"><strong>aggregate_id:</strong> El orderNumber (para relacionarlo con la orden)</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="corner-tag">10.3 / PASO 3</div>
+  </div>
+
+  <!-- SLIDE 7: VALIDACIÓN -->
+  <div class="slide" id="s7">
+    <div class="slide-label"><span>06</span> · Validación</div>
+    <h2>Ejecución y Validación</h2>
+    <p class="dim" style="margin-bottom:18px;">Verificando que el patrón funciona</p>
+
+    <div style="max-width:900px; width:100%;">
+      <div class="card" style="border-left:3px solid var(--accent-green);">
+        <h3>✅ El Escenario de Éxito</h3>
+        <p style="margin-top:12px; margin-bottom:16px;">
+          Con este patrón, <strong>aunque RabbitMQ esté apagado</strong> (como hicimos en la clase anterior), 
+          el método <code>placeOrder</code> devolverá un <code>201 Created</code> al cliente.
+        </p>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num" style="color:var(--accent-green); border-color:rgba(166,227,161,.3);">1</div>
+            <div class="step-body">
+              <p style="font-size:14px;">
+                <strong>La venta se habrá realizado</strong> (registro en <code>t_orders</code>)
+              </p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="color:var(--accent-green); border-color:rgba(166,227,161,.3);">2</div>
+            <div class="step-body">
+              <p style="font-size:14px;">
+                <strong>El evento está seguro</strong> (registro en <code>outbox_events</code>)
+              </p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="color:var(--accent-green); border-color:rgba(166,227,161,.3);">3</div>
+            <div class="step-body">
+              <p style="font-size:14px;">
+                <strong>El cliente está feliz</strong> (recibió confirmación inmediata)
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px; border-top:3px solid var(--accent-blue);">
+        <h3>🔍 Validación en DB</h3>
+        <pre class="code-block" style="margin-top:12px; font-size:12px;"><code><span class="keyword">SELECT</span> * <span class="keyword">FROM</span> outbox_events 
+<span class="keyword">WHERE</span> status = <span class="string">'PENDING'</span>;</code></pre>
+        <p style="margin-top:12px; font-size:14px;">
+          Verás tu mensaje ahí, <strong>"durmiendo" y seguro</strong>, esperando a que RabbitMQ 
+          vuelva para ser procesado.
+        </p>
+      </div>
+    </div>
+
+    <div class="corner-tag">10.3 / VALIDACIÓN</div>
+  </div>
+
+  <!-- SLIDE 8: RESUMEN -->
+  <div class="slide" id="s8">
+    <div class="slide-label"><span>07</span> · Resumen</div>
+    <svg class="deco-dots" style="bottom:-50px;left:-30px;width:240px;height:240px;" viewBox="0 0 240 240">
+      <defs><pattern id="dp2" x="0" y="0" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.6" fill="var(--accent-cyan)"/></pattern></defs>
+      <rect width="240" height="240" fill="url(#dp2)"/>
+    </svg>
+
+    <div class="badge badge-cyan" style="margin-bottom:16px;">Puntos Clave</div>
+    <h1>La Bandeja de Salida: Resumen</h1>
+
+    <div class="card" style="margin-top:26px; max-width:760px; padding:28px 32px;">
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">📮</div>
+          <div class="step-body">
+            <p><strong>Tabla Outbox:</strong> Guardamos eventos como "emails pendientes" en PostgreSQL</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">⚛️</div>
+          <div class="step-body">
+            <p><strong>Guardado Atómico:</strong> Pedido + Evento en la misma transacción</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">🔓</div>
+          <div class="step-body">
+            <p><strong>Desacoplamiento:</strong> RabbitMQ ya no puede bloquear las ventas</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">✅</div>
+          <div class="step-body">
+            <p><strong>Resiliencia:</strong> Si la DB funciona, la venta se completa</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">⏳</div>
+          <div class="step-body">
+            <p><strong>Envío Diferido:</strong> Un proceso posterior enviará los mensajes pendientes</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p style="color:var(--text-dim); margin-top:20px; text-align:center; font-size:14px; max-width:620px;">
+      Hemos pasado de un sistema que <strong>se bloquea</strong> a uno que es <strong>Resiliente</strong>: 
+      priorizamos la venta y posponemos la notificación.
+    </p>
+
+    <div style="margin-top:20px;">
+      <div class="badge badge-blue">🎯 Próxima clase: Implementación de la entidad OutboxEvent</div>
+    </div>
+
+    <div class="corner-tag">10.3 / FIN</div>
+  </div>
+
+</div>
+
+<div class="nav">
+  <button id="btnPrev" disabled>◀</button>
+  <div class="dots" id="dots"></div>
+  <button id="btnNext">▶</button>
+</div>
+
+<script>
+  const deck   = document.getElementById('deck');
+  const slides = document.querySelectorAll('.slide');
+  const total  = slides.length;
+  let current  = 0;
+
+  const dotsEl = document.getElementById('dots');
+  slides.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.onclick   = () => goTo(i);
+    dotsEl.appendChild(d);
+  });
+
+  function goTo(n) {
+    if (n < 0 || n >= total) return;
+    slides[current].classList.remove('active');
+    current = n;
+    slides[current].classList.add('active');
+    deck.style.transform = `translateX(-${current * 100}vw)`;
+    document.querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('active', i === current));
+    document.getElementById('btnPrev').disabled = current === 0;
+    document.getElementById('btnNext').disabled = current === total - 1;
+  }
+
+  document.getElementById('btnPrev').onclick = () => goTo(current - 1);
+  document.getElementById('btnNext').onclick = () => goTo(current + 1);
+
+  // Keyboard navigation
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft') goTo(current - 1);
+    if (e.key === 'ArrowRight') goTo(current + 1);
+  });
+</script>
+
+</body>
+</html>

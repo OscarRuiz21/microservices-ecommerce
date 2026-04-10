@@ -9,12 +9,14 @@ import com.ecommerce.order_service.model.Order;
 import com.ecommerce.order_service.model.OrderStatus;
 import com.ecommerce.order_service.repository.OrderRepository;
 import com.ecommerce.order_service.service.OrderService;
+import com.ecommerce.order_service.service.OutboxService;
 import com.ecommerce.order_service.service.client.InventoryClient;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 //import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -37,6 +39,8 @@ public class OrderServiceImpl implements OrderService {
     //private final InventoryClient inventoryClient;
 
     private final RabbitTemplate rabbitTemplate;
+    private final OutboxService outboxService;
+
 
     @Value("${order.enabled:false}")
     private boolean ordersEnabled;
@@ -146,7 +150,17 @@ public class OrderServiceImpl implements OrderService {
                 savedOrder.getOrderNumber(), orderRequest.getEmail(), orderItems
         );
 
-        rabbitTemplate.convertAndSend("order-events", "order.placed", event);
+        boolean sentToRabbit = false;
+        try{
+            rabbitTemplate.convertAndSend("order-events", "order.placed", event);
+            sentToRabbit = true;
+            log.info("🚀 Mensaje enviado inmediatamente a RabbitMQ: {}", savedOrder.getOrderNumber());
+        }catch (AmqpException e){
+            log.error("⚠️ RabbitMQ caído. El Outbox asegurará el envío posterior para la orden: {}", savedOrder.getOrderNumber());
+        }
+
+        outboxService.saveOrderPlacedEvent(event, sentToRabbit);
+
         log.info("Evento enviado a RabbitMQ para la orden: {}", savedOrder.getOrderNumber());
 
         return orderMapper.toOrderResponse(savedOrder);

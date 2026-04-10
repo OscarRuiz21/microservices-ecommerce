@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clase 10.1 — Virtual Threads: Gateway y Notificaciones</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+
+    :root {
+      --bg-base:      #1e1e2e;
+      --bg-surface:   #2a2a3d;
+      --bg-card:      #252538;
+      --bg-code:      #1a1a2a;
+      --text-primary: #cdd6f4;
+      --text-dim:     #7f849c;
+      --text-white:   #f2f2f2;
+      --accent-green: #a6e3a1;
+      --accent-red:   #f38ba8;
+      --accent-yellow:#f9e2af;
+      --accent-blue:  #89b4fa;
+      --accent-cyan:  #89dceb;
+      --accent-pink:  #f38ba8;
+      --accent-orange:#fab387;
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    html, body {
+      width:100%; height:100%; overflow:hidden;
+      background:#111118;
+      font-family:'Inter', sans-serif;
+      color: var(--text-primary);
+      user-select:none;
+    }
+
+    /* ── SLIDES CONTAINER ── */
+    .deck {
+      display:flex;
+      width:100%;
+      height:100vh;
+      transition: transform .45s cubic-bezier(.4,0,.2,1);
+    }
+
+    .slide {
+      min-width:100vw;
+      height:100vh;
+      background: var(--bg-base);
+      position:relative;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      align-items:center;
+      padding: 48px 60px;
+      overflow:hidden;
+    }
+
+    /* ── NAV ── */
+    .nav {
+      position:fixed; bottom:28px; left:50%; transform:translateX(-50%);
+      display:flex; align-items:center; gap:14px;
+      background:rgba(30,30,46,.85); backdrop-filter:blur(12px);
+      border:1px solid rgba(137,180,250,.15);
+      border-radius:40px; padding:10px 22px;
+      z-index:100;
+    }
+    .nav button {
+      background:none; border:none; color:var(--text-dim);
+      font-size:20px; cursor:pointer; transition:color .2s;
+      font-family:'Inter',sans-serif;
+    }
+    .nav button:hover { color:var(--accent-blue); }
+    .nav button:disabled { opacity:.25; cursor:default; }
+    .dots { display:flex; gap:8px; }
+    .dot {
+      width:8px; height:8px; border-radius:50%;
+      background:var(--text-dim); transition:background .3s, transform .3s;
+      cursor:pointer;
+    }
+    .dot.active { background:var(--accent-blue); transform:scale(1.3); }
+
+    /* ── SLIDE LABELS ── */
+    .slide-label {
+      position:absolute; top:28px; left:40px;
+      font-family:'JetBrains Mono',monospace;
+      font-size:11px; color:var(--text-dim); letter-spacing:2px;
+      text-transform:uppercase;
+    }
+    .slide-label span { color:var(--accent-blue); }
+
+    /* ── CORNER TAG ── */
+    .corner-tag {
+      position:absolute; bottom:20px; right:24px;
+      font-family:'JetBrains Mono',monospace;
+      font-size:10px; color:var(--text-dim); letter-spacing:1.5px;
+      text-transform:uppercase;
+    }
+
+    /* ── TYPOGRAPHY ── */
+    h1 {
+      font-family:'JetBrains Mono',monospace;
+      font-size:38px; font-weight:700;
+      color:var(--text-white); line-height:1.2;
+      text-align:center;
+    }
+    h2 {
+      font-family:'JetBrains Mono',monospace;
+      font-size:26px; font-weight:600;
+      color:var(--text-white); margin-bottom:8px;
+    }
+    h3 {
+      font-family:'JetBrains Mono',monospace;
+      font-size:17px; font-weight:600;
+      color:var(--accent-cyan); margin-bottom:6px;
+    }
+    p, li {
+      font-size:15px; line-height:1.7; color:var(--text-primary);
+    }
+    .dim { color:var(--text-dim); font-size:13px; }
+    code {
+      font-family:'JetBrains Mono',monospace;
+      color:var(--accent-orange);
+      font-size:inherit;
+    }
+
+    p code, li code {
+       background:var(--bg-code);
+       padding:2px 7px;
+       border-radius:4px;
+       font-size:13px;
+    }
+
+    /* ── BADGES ── */
+    .badge {
+      display:inline-block;
+      font-family:'JetBrains Mono',monospace;
+      font-size:11px; font-weight:600;
+      padding:4px 10px; border-radius:20px;
+      letter-spacing:1px; text-transform:uppercase;
+    }
+    .badge-green  { background:rgba(166,227,161,.15); color:var(--accent-green); }
+    .badge-red    { background:rgba(243,139,168,.15); color:var(--accent-red);   }
+    .badge-yellow { background:rgba(249,226,175,.15); color:var(--accent-yellow);}
+    .badge-blue   { background:rgba(137,180,250,.15); color:var(--accent-blue);  }
+    .badge-cyan   { background:rgba(137,220,235,.15); color:var(--accent-cyan);  }
+    .badge-orange { background:rgba(250,179,135,.15); color:var(--accent-orange);  }
+
+    /* ── CARDS ── */
+    .card {
+      background:var(--bg-card);
+      border:1px solid rgba(137,180,250,.1);
+      border-radius:12px;
+      padding:22px 26px;
+    }
+
+    /* ── STEPS ── */
+    .steps { display:flex; flex-direction:column; gap:12px; }
+    .step {
+      display:flex; gap:12px; align-items:flex-start;
+    }
+    .step-num {
+      min-width:28px; height:28px; border-radius:50%;
+      background:var(--bg-code);
+      border:1px solid rgba(137,180,250,.25);
+      display:flex; align-items:center; justify-content:center;
+      font-family:'JetBrains Mono',monospace;
+      font-size:12px; font-weight:700;
+      color:var(--accent-blue);
+    }
+    .step-body { flex:1; }
+
+    /* ── CODE BLOCK ── */
+    pre.code-block {
+      background:var(--bg-code);
+      border:1px solid rgba(137,180,250,.12);
+      border-radius:10px;
+      padding:18px 22px;
+      font-family:'JetBrains Mono',monospace;
+      font-size:13px;
+      line-height:1.7;
+      color:var(--text-primary);
+      overflow-x:auto;
+      max-width:100%;
+      text-align:left;
+      white-space: pre;
+    }
+    .code-block .keyword { color:var(--accent-pink); }
+    .code-block .string { color:var(--accent-green); }
+    .code-block .comment { color:var(--text-dim); font-style:italic; }
+
+    /* ── HIGHLIGHT BOX ── */
+    .highlight-box {
+      background: rgba(137,180,250,.08);
+      border-left: 3px solid var(--accent-blue);
+      padding: 16px 20px;
+      border-radius: 8px;
+      margin: 16px 0;
+    }
+
+    .highlight-box p {
+      font-size: 14px;
+      color: var(--text-primary);
+    }
+
+    /* ── DECORATIVE DOTS ── */
+    .deco-dots {
+      position:absolute; opacity:.15; pointer-events:none;
+    }
+  </style>
+</head>
+<body>
+
+<div class="deck" id="deck">
+
+  <!-- SLIDE 1: PORTADA -->
+  <div class="slide" id="s1">
+    <svg class="deco-dots" style="top:-40px;right:-40px;width:280px;height:280px;" viewBox="0 0 280 280">
+      <defs><pattern id="dp1" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.8" fill="var(--accent-green)"/></pattern></defs>
+      <rect width="280" height="280" fill="url(#dp1)"/>
+    </svg>
+
+    <div class="badge badge-green" style="margin-bottom:14px;">Sección 10 · Clase 10.1</div>
+    <h1 style="margin-bottom:12px;">Virtual Threads:<br/>Gateway y Notificaciones</h1>
+    <p class="dim" style="font-size:14px; text-align:center;">
+      Habilitando Project Loom en los puntos críticos de entrada y consumo
+    </p>
+
+    <div style="margin-top:32px; display:flex; gap:14px;">
+      <div class="badge badge-blue">⏱️ 7 min</div>
+      <div class="badge badge-cyan">🎯 Spring Boot 4</div>
+    </div>
+
+    <div class="corner-tag">Escalabilidad</div>
+  </div>
+
+  <!-- SLIDE 2: EXPLICACIÓN -->
+  <div class="slide" id="s2">
+    <div class="slide-label"><span>01</span> · Contexto</div>
+    <h2>¿Por qué ahora?</h2>
+    <p class="dim" style="margin-bottom:18px;">El Gateway como cuello de botella</p>
+
+    <div style="max-width:880px; width:100%;">
+      <p style="margin-bottom:20px;">
+        Ya activamos los hilos virtuales en nuestros servicios de lógica, pero hoy vamos a aplicarlos 
+        <strong>donde más importa</strong>: el <strong>API Gateway</strong>.
+      </p>
+
+      <div class="card" style="border-left:3px solid var(--accent-green);">
+        <h3>El Problema</h3>
+        <p style="margin-top:12px; margin-bottom:16px;">
+          Al ser la puerta de entrada única, si el Gateway se queda sin hilos del sistema operativo, 
+          <strong>todo el sistema parece caído</strong>.
+        </p>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num" style="color:var(--accent-green); border-color:rgba(166,227,161,.3);">🔓</div>
+            <div class="step-body">
+              <p style="font-size:14px;">
+                Al activar <strong>Project Loom</strong>, el Gateway dejará de usar hilos pesados y pasará a usar 
+                <strong>hilos virtuales</strong>
+              </p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="color:var(--accent-green); border-color:rgba(166,227,161,.3);">⚡</div>
+            <div class="step-body">
+              <p style="font-size:14px;">
+                Permitiendo que <strong>miles de usuarios entren simultáneamente</strong> sin aumentar el consumo de memoria
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="highlight-box" style="margin-top:20px; border-left-color:var(--accent-cyan);">
+        <p>
+          También lo activaremos en <strong>Notification Service</strong>, para que el envío de mails 
+          (una tarea lenta y bloqueante) no detenga el procesamiento de otros mensajes.
+        </p>
+      </div>
+    </div>
+
+    <div class="corner-tag">10.1 / TEORÍA</div>
+  </div>
+
+  <!-- SLIDE 3: PASO 1 - API GATEWAY -->
+  <div class="slide" id="s3">
+    <div class="slide-label"><span>02</span> · Configuración</div>
+    <h2>Paso 1: Configurar API Gateway</h2>
+    <p class="dim" style="margin-bottom:16px;">En el Config Server o localmente</p>
+
+    <div style="max-width:900px; width:100%;">
+      <p style="margin-bottom:16px;">
+        Abre el archivo de configuración del <strong>API Gateway</strong>. Si usas Config Server centralizado, 
+        edita <code>api-gateway.yml</code> en tu repositorio Git.
+      </p>
+
+      <div class="card" style="border-top:3px solid var(--accent-blue);">
+        <h3>📂 Ubicación</h3>
+        <p style="margin-top:12px; font-size:14px;">
+          <code>config-data/api-gateway.yml</code> (si usas Config Server)<br/>
+          o <code>api-gateway/src/main/resources/application.yml</code>
+        </p>
+      </div>
+    </div>
+
+    <div class="corner-tag">10.1 / PASO 1</div>
+  </div>
+
+  <!-- SLIDE 4: PASO 2 - NOTIFICATION SERVICE -->
+  <div class="slide" id="s4">
+    <div class="slide-label"><span>03</span> · Configuración</div>
+    <h2>Paso 2: Configurar Notification Service</h2>
+    <p class="dim" style="margin-bottom:16px;">Para desbloquear el envío de correos</p>
+
+    <div style="max-width:900px; width:100%;">
+      <p style="margin-bottom:16px;">
+        Ahora hacemos lo mismo con <strong>Notification Service</strong> para que el envío de emails 
+        vía SMTP no bloquee el consumo de mensajes RabbitMQ.
+      </p>
+
+      <div class="card" style="border-top:3px solid var(--accent-cyan);">
+        <h3>📂 Ubicación</h3>
+        <p style="margin-top:12px; font-size:14px;">
+          <code>config-data/notification-service.yml</code> (si usas Config Server)<br/>
+          o <code>notification-service/src/main/resources/application.yml</code>
+        </p>
+      </div>
+    </div>
+
+    <div class="corner-tag">10.1 / PASO 2</div>
+  </div>
+
+  <!-- SLIDE 5: CÓDIGO YAML -->
+  <div class="slide" id="s5">
+    <div class="slide-label"><span>04</span> · Código</div>
+    <h2>Paso 3: La Propiedad Mágica</h2>
+    <p class="dim" style="margin-bottom:16px;">Una línea de configuración con impacto masivo</p>
+
+    <div style="max-width:900px; width:100%;">
+      <p style="margin-bottom:16px;">
+        En <strong>ambos servicios</strong>, dentro del bloque <code>spring</code>, agregaremos la 
+        llave mágica de escalabilidad:
+      </p>
+
+      <pre class="code-block" style="font-size:13px;"><code><span class="keyword">spring</span>:
+  <span class="keyword">threads</span>:
+    <span class="keyword">virtual</span>:
+      <span class="keyword">enabled</span>: <span class="string">true</span>  <span class="comment"># Permite que Spring use Virtual Threads</span></code></pre>
+
+      <div class="highlight-box" style="margin-top:20px;">
+        <p>
+          <strong>📝 Nota importante:</strong> Al ser Spring Boot 4, esta propiedad configura automáticamente 
+          el servidor embebido para procesar cada petición en un <strong>hilo virtual independiente</strong>, 
+          evitando el cuello de botella tradicional de los hilos del SO.
+        </p>
+      </div>
+    </div>
+
+    <div class="corner-tag">10.1 / CÓDIGO</div>
+  </div>
+
+  <!-- SLIDE 6: VALIDACIÓN -->
+  <div class="slide" id="s6">
+    <div class="slide-label"><span>05</span> · Validación</div>
+    <h2>Ejecución y Validación</h2>
+    <p class="dim" style="margin-bottom:18px;">Verificando el cambio</p>
+
+    <div style="max-width:880px; width:100%;">
+      <p style="margin-bottom:20px;">
+        Para validar el cambio correctamente:
+      </p>
+
+      <div class="card" style="border-top:3px solid var(--accent-green);">
+        <div class="steps">
+          <div class="step">
+            <div class="step-num" style="color:var(--accent-green); border-color:rgba(166,227,161,.3);">1</div>
+            <div class="step-body">
+              <p style="font-size:14px;">
+                <strong>Reinicia el API Gateway</strong>
+              </p>
+              <p style="font-size:13px; color:var(--text-dim); margin-top:4px;">
+                Observa que el arranque sigue siendo igual de rápido
+              </p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="color:var(--accent-green); border-color:rgba(166,227,161,.3);">2</div>
+            <div class="step-body">
+              <p style="font-size:14px;">
+                <strong>Preparado para picos de tráfico</strong>
+              </p>
+              <p style="font-size:13px; color:var(--text-dim); margin-top:4px;">
+                La JVM está ahora preparada para manejar picos que antes causaban "Too many threads"
+              </p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="color:var(--accent-green); border-color:rgba(166,227,161,.3);">3</div>
+            <div class="step-body">
+              <p style="font-size:14px;">
+                <strong>Notification Service desbloqueado</strong>
+              </p>
+              <p style="font-size:13px; color:var(--text-dim); margin-top:4px;">
+                El envío de correos vía SMTP no bloqueará el hilo que escucha RabbitMQ
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="highlight-box" style="margin-top:24px; border-left-color:var(--accent-blue);">
+        <p>
+          <strong>✅ Sin cambios visibles:</strong> La belleza de los Virtual Threads es que son 
+          <strong>transparentes</strong>. El código no cambia, pero la capacidad de concurrencia se multiplica.
+        </p>
+      </div>
+    </div>
+
+    <div class="corner-tag">10.1 / VALIDACIÓN</div>
+  </div>
+
+  <!-- SLIDE 7: RESUMEN -->
+  <div class="slide" id="s7">
+    <div class="slide-label"><span>06</span> · Resumen</div>
+    <svg class="deco-dots" style="bottom:-50px;left:-30px;width:240px;height:240px;" viewBox="0 0 240 240">
+      <defs><pattern id="dp2" x="0" y="0" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.6" fill="var(--accent-green)"/></pattern></defs>
+      <rect width="240" height="240" fill="url(#dp2)"/>
+    </svg>
+
+    <div class="badge badge-green" style="margin-bottom:16px;">Puntos Clave</div>
+    <h1>Virtual Threads: Resumen</h1>
+
+    <div class="card" style="margin-top:26px; max-width:760px; padding:28px 32px;">
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">🚪</div>
+          <div class="step-body">
+            <p><strong>API Gateway:</strong> Puerta de entrada con capacidad ilimitada de concurrencia</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">📧</div>
+          <div class="step-body">
+            <p><strong>Notification Service:</strong> Envío de correos sin bloquear el consumo de eventos</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">⚡</div>
+          <div class="step-body">
+            <p><strong>Una línea de config:</strong> <code>spring.threads.virtual.enabled: true</code></p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">🔓</div>
+          <div class="step-body">
+            <p><strong>Impacto:</strong> Miles de peticiones simultáneas sin aumentar memoria</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">✨</div>
+          <div class="step-body">
+            <p><strong>Transparente:</strong> El código no cambia, la escalabilidad sí</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p style="color:var(--text-dim); margin-top:20px; text-align:center; font-size:14px; max-width:620px;">
+      Con esto, tu Gateway y tu sistema de notificaciones están preparados para escalar 
+      <strong>sin límites de hilos del sistema operativo</strong>.
+    </p>
+
+    <div class="corner-tag">10.1 / FIN</div>
+  </div>
+
+</div>
+
+<div class="nav">
+  <button id="btnPrev" disabled>◀</button>
+  <div class="dots" id="dots"></div>
+  <button id="btnNext">▶</button>
+</div>
+
+<script>
+  const deck   = document.getElementById('deck');
+  const slides = document.querySelectorAll('.slide');
+  const total  = slides.length;
+  let current  = 0;
+
+  const dotsEl = document.getElementById('dots');
+  slides.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.onclick   = () => goTo(i);
+    dotsEl.appendChild(d);
+  });
+
+  function goTo(n) {
+    if (n < 0 || n >= total) return;
+    slides[current].classList.remove('active');
+    current = n;
+    slides[current].classList.add('active');
+    deck.style.transform = `translateX(-${current * 100}vw)`;
+    document.querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('active', i === current));
+    document.getElementById('btnPrev').disabled = current === 0;
+    document.getElementById('btnNext').disabled = current === total - 1;
+  }
+
+  document.getElementById('btnPrev').onclick = () => goTo(current - 1);
+  document.getElementById('btnNext').onclick = () => goTo(current + 1);
+
+  // Keyboard navigation
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft') goTo(current - 1);
+    if (e.key === 'ArrowRight') goTo(current + 1);
+  });
+</script>
+
+</body>
+</html>

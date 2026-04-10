@@ -1,6 +1,7 @@
 package com.ecommerce.inventory_service.listener;
 
 import com.ecommerce.inventory_service.event.OrderCancelledEvent;
+import com.ecommerce.inventory_service.event.OrderConfirmedEvent;
 import com.ecommerce.inventory_service.event.OrderPlacedEvent;
 import com.ecommerce.inventory_service.service.InventoryService;
 import lombok.RequiredArgsConstructor;
@@ -13,12 +14,12 @@ import org.springframework.stereotype.Component;
 @Component
 @Slf4j
 public class OrderEventsListener {
+
     private final InventoryService inventoryService;
     private final RabbitTemplate rabbitTemplate;
 
-
     @RabbitListener(queues = "inventory-queue")
-    public void handleOrderPlacedEvent(OrderPlacedEvent event) {
+    public void handleOrderPlacedEvent(OrderPlacedEvent event){
 
         log.info("Evento recibido en Inventario para Orden: {}", event.orderNumber());
 
@@ -36,7 +37,11 @@ public class OrderEventsListener {
                 inventoryService.reduceStock(item.sku(), item.quantity());
             });
 
-            rabbitTemplate.convertAndSend("order-events", "order.confirmed", event);
+            OrderConfirmedEvent confirmedEvent = new OrderConfirmedEvent(
+                    event.orderNumber(), event.email()
+            );
+
+            rabbitTemplate.convertAndSend("order-events", "order.confirmed", confirmedEvent);
 
             log.info("Stock descontado para Orden número: {}", event.orderNumber());
         } catch (Exception e) {

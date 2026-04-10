@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clase 11.0 — OpenTelemetry: Observabilidad Moderna</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+
+    :root {
+      --bg-base:      #1e1e2e;
+      --bg-surface:   #2a2a3d;
+      --bg-card:      #252538;
+      --bg-code:      #1a1a2a;
+      --text-primary: #cdd6f4;
+      --text-dim:     #7f849c;
+      --text-white:   #f2f2f2;
+      --accent-green: #a6e3a1;
+      --accent-red:   #f38ba8;
+      --accent-yellow:#f9e2af;
+      --accent-blue:  #89b4fa;
+      --accent-cyan:  #89dceb;
+      --accent-pink:  #f38ba8;
+      --accent-orange:#fab387;
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    html, body {
+      width:100%; height:100%; overflow:hidden;
+      background:#111118;
+      font-family:'Inter', sans-serif;
+      color: var(--text-primary);
+      user-select:none;
+    }
+
+    /* ── SLIDES CONTAINER ── */
+    .deck {
+      display:flex;
+      width:100%;
+      height:100vh;
+      transition: transform .45s cubic-bezier(.4,0,.2,1);
+    }
+
+    .slide {
+      min-width:100vw;
+      height:100vh;
+      background: var(--bg-base);
+      position:relative;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      align-items:center;
+      padding: 48px 60px;
+      overflow:hidden;
+    }
+
+    /* ── NAV ── */
+    .nav {
+      position:fixed; bottom:28px; left:50%; transform:translateX(-50%);
+      display:flex; align-items:center; gap:14px;
+      background:rgba(30,30,46,.85); backdrop-filter:blur(12px);
+      border:1px solid rgba(137,180,250,.15);
+      border-radius:40px; padding:10px 22px;
+      z-index:100;
+    }
+    .nav button {
+      background:none; border:none; color:var(--text-dim);
+      font-size:20px; cursor:pointer; transition:color .2s;
+      font-family:'Inter',sans-serif;
+    }
+    .nav button:hover { color:var(--accent-blue); }
+    .nav button:disabled { opacity:.25; cursor:default; }
+    .dots { display:flex; gap:8px; }
+    .dot {
+      width:8px; height:8px; border-radius:50%;
+      background:var(--text-dim); transition:background .3s, transform .3s;
+      cursor:pointer;
+    }
+    .dot.active { background:var(--accent-blue); transform:scale(1.3); }
+
+    /* ── SLIDE LABELS ── */
+    .slide-label {
+      position:absolute; top:28px; left:40px;
+      font-family:'JetBrains Mono',monospace;
+      font-size:11px; color:var(--text-dim); letter-spacing:2px;
+      text-transform:uppercase;
+    }
+    .slide-label span { color:var(--accent-blue); }
+
+    /* ── CORNER TAG ── */
+    .corner-tag {
+      position:absolute; bottom:20px; right:24px;
+      font-family:'JetBrains Mono',monospace;
+      font-size:10px; color:var(--text-dim); letter-spacing:1.5px;
+      text-transform:uppercase;
+    }
+
+    /* ── TYPOGRAPHY ── */
+    h1 {
+      font-family:'JetBrains Mono',monospace;
+      font-size:38px; font-weight:700;
+      color:var(--text-white); line-height:1.2;
+      text-align:center;
+    }
+    h2 {
+      font-family:'JetBrains Mono',monospace;
+      font-size:26px; font-weight:600;
+      color:var(--text-white); margin-bottom:8px;
+    }
+    h3 {
+      font-family:'JetBrains Mono',monospace;
+      font-size:17px; font-weight:600;
+      color:var(--accent-cyan); margin-bottom:6px;
+    }
+    p, li {
+      font-size:15px; line-height:1.7; color:var(--text-primary);
+    }
+    .dim { color:var(--text-dim); font-size:13px; }
+    code {
+      font-family:'JetBrains Mono',monospace;
+      color:var(--accent-orange);
+      font-size:inherit;
+    }
+
+    p code, li code {
+       background:var(--bg-code);
+       padding:2px 7px;
+       border-radius:4px;
+       font-size:13px;
+    }
+
+    /* ── BADGES ── */
+    .badge {
+      display:inline-block;
+      font-family:'JetBrains Mono',monospace;
+      font-size:11px; font-weight:600;
+      padding:4px 10px; border-radius:20px;
+      letter-spacing:1px; text-transform:uppercase;
+    }
+    .badge-green  { background:rgba(166,227,161,.15); color:var(--accent-green); }
+    .badge-red    { background:rgba(243,139,168,.15); color:var(--accent-red);   }
+    .badge-yellow { background:rgba(249,226,175,.15); color:var(--accent-yellow);}
+    .badge-blue   { background:rgba(137,180,250,.15); color:var(--accent-blue);  }
+    .badge-cyan   { background:rgba(137,220,235,.15); color:var(--accent-cyan);  }
+    .badge-orange { background:rgba(250,179,135,.15); color:var(--accent-orange);  }
+
+    /* ── CARDS ── */
+    .card {
+      background:var(--bg-card);
+      border:1px solid rgba(137,180,250,.1);
+      border-radius:12px;
+      padding:22px 26px;
+    }
+
+    /* ── STEPS ── */
+    .steps { display:flex; flex-direction:column; gap:12px; }
+    .step {
+      display:flex; gap:12px; align-items:flex-start;
+    }
+    .step-num {
+      min-width:28px; height:28px; border-radius:50%;
+      background:var(--bg-code);
+      border:1px solid rgba(137,180,250,.25);
+      display:flex; align-items:center; justify-content:center;
+      font-family:'JetBrains Mono',monospace;
+      font-size:12px; font-weight:700;
+      color:var(--accent-blue);
+    }
+    .step-body { flex:1; }
+
+    /* ── CODE BLOCK ── */
+    pre.code-block {
+      background:var(--bg-code);
+      border:1px solid rgba(137,180,250,.12);
+      border-radius:10px;
+      padding:18px 22px;
+      font-family:'JetBrains Mono',monospace;
+      font-size:13px;
+      line-height:1.7;
+      color:var(--text-primary);
+      overflow-x:auto;
+      max-width:100%;
+      text-align:left;
+      white-space: pre;
+    }
+    .code-block .keyword { color:var(--accent-pink); }
+    .code-block .string { color:var(--accent-green); }
+    .code-block .comment { color:var(--text-dim); font-style:italic; }
+
+    /* ── HIGHLIGHT BOX ── */
+    .highlight-box {
+      background: rgba(137,180,250,.08);
+      border-left: 3px solid var(--accent-blue);
+      padding: 16px 20px;
+      border-radius: 8px;
+      margin: 16px 0;
+    }
+
+    .highlight-box p {
+      font-size: 14px;
+      color: var(--text-primary);
+    }
+
+    /* ── DECORATIVE DOTS ── */
+    .deco-dots {
+      position:absolute; opacity:.15; pointer-events:none;
+    }
+
+    /* ── COMPARISON GRID ── */
+    .comparison {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      width: 100%;
+      max-width: 950px;
+      margin: 20px 0;
+    }
+
+    /* ── PILLAR CARDS ── */
+    .pillar-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      width: 100%;
+      max-width: 900px;
+      margin: 24px 0;
+    }
+
+    .pillar-card {
+      background: var(--bg-card);
+      border: 2px solid rgba(137,180,250,.15);
+      border-radius: 12px;
+      padding: 24px 20px;
+      text-align: center;
+      transition: border-color 0.3s;
+    }
+
+    .pillar-card:hover {
+      border-color: rgba(137,180,250,.4);
+    }
+
+    .pillar-icon {
+      font-size: 36px;
+      margin-bottom: 12px;
+    }
+
+    .pillar-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--accent-cyan);
+      margin-bottom: 8px;
+    }
+
+    .pillar-desc {
+      font-size: 13px;
+      color: var(--text-dim);
+      line-height: 1.5;
+    }
+
+    /* ── VS LAYOUT ── */
+    .vs-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      margin: 24px 0;
+    }
+
+    .vs-badge {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--accent-orange);
+      font-family: 'JetBrains Mono', monospace;
+    }
+  </style>
+</head>
+<body>
+
+<div class="deck" id="deck">
+
+  <!-- SLIDE 1: PORTADA -->
+  <div class="slide" id="s1">
+    <svg class="deco-dots" style="top:-40px;right:-40px;width:280px;height:280px;" viewBox="0 0 280 280">
+      <defs><pattern id="dp1" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.8" fill="var(--accent-blue)"/></pattern></defs>
+      <rect width="280" height="280" fill="url(#dp1)"/>
+    </svg>
+
+    <div class="badge badge-blue" style="margin-bottom:14px;">Sección 11 · Clase 11.0</div>
+    <h1 style="margin-bottom:12px;">OpenTelemetry:<br/>Observabilidad Moderna</h1>
+    <p class="dim" style="font-size:14px; text-align:center;">
+      El estándar que unifica métricas, trazas y logs
+    </p>
+
+    <div style="margin-top:32px; display:flex; gap:14px;">
+      <div class="badge badge-blue">⏱️ 8 min</div>
+      <div class="badge badge-cyan">🎯 Spring Boot 4</div>
+    </div>
+
+    <div class="corner-tag">Teoría</div>
+  </div>
+
+  <!-- SLIDE 2: EL PROBLEMA -->
+  <div class="slide" id="s2">
+    <div class="slide-label"><span>01</span> · El Problema</div>
+    <h2>Monitorear vs Observar</h2>
+    <p class="dim" style="margin-bottom:18px;">La diferencia crítica en sistemas distribuidos</p>
+
+    <div style="max-width:900px; width:100%;">
+      <div class="comparison">
+        <div class="card" style="border-left:3px solid var(--accent-red);">
+          <h3 style="color: var(--accent-red);">❌ Monitoreo Tradicional</h3>
+          <p style="margin-top:12px; font-size:14px; line-height:1.7;">
+            Te dice <strong>QUE</strong> algo falló.<br/><br/>
+            "El servicio de inventario está caído"<br/>
+            "La tasa de error subió al 5%"<br/><br/>
+            <span style="color:var(--text-dim);">Pero no te dice POR QUÉ.</span>
+          </p>
+        </div>
+
+        <div class="card" style="border-left:3px solid var(--accent-green);">
+          <h3 style="color: var(--accent-green);">✅ Observabilidad</h3>
+          <p style="margin-top:12px; font-size:14px; line-height:1.7;">
+            Te permite preguntar <strong>POR QUÉ</strong> falló.<br/><br/>
+            "¿Qué pedido causó el error?"<br/>
+            "¿Qué servicio tardó más?"<br/><br/>
+            <span style="color:var(--accent-green); font-weight:600;">Sin cambiar el código.</span>
+          </p>
+        </div>
+      </div>
+
+      <div class="highlight-box" style="margin-top:20px; border-left-color:var(--accent-blue);">
+        <p>
+          <strong>💡 Clave:</strong> En microservicios, necesitamos poder hacer preguntas que 
+          <strong>no anticipamos</strong> cuando escribimos el código. Esa es la promesa de la observabilidad.
+        </p>
+      </div>
+    </div>
+
+    <div class="corner-tag">11.0 / CONTEXTO</div>
+  </div>
+
+  <!-- SLIDE 3: QUÉ ES OTEL -->
+  <div class="slide" id="s3">
+    <div class="slide-label"><span>02</span> · Definición</div>
+    <h2>¿Qué es OpenTelemetry?</h2>
+    <p class="dim" style="margin-bottom:16px;">El estándar de código abierto para observabilidad</p>
+
+    <div style="max-width:900px; width:100%;">
+      <div class="card" style="border-top:3px solid var(--accent-cyan);">
+        <p style="margin-bottom:16px; font-size:15px; line-height:1.8;">
+          <strong>OpenTelemetry (OTel)</strong> es un estándar de la CNCF que unifica la recolección 
+          de datos de observabilidad en un solo protocolo: <code>OTLP</code> (OpenTelemetry Protocol).
+        </p>
+        <p style="font-size:14px; color:var(--text-dim);">
+          Antes de OTel, cada herramienta tenía su propio formato: Zipkin usaba uno, Jaeger otro, 
+          Prometheus otro. Hoy, con OTLP, escribimos nuestro código UNA VEZ y lo enviamos a 
+          <strong>cualquier backend</strong> compatible.
+        </p>
+      </div>
+
+      <div class="pillar-grid">
+        <div class="pillar-card">
+          <div class="pillar-icon">📊</div>
+          <div class="pillar-title">Métricas</div>
+          <div class="pillar-desc">CPU, memoria, requests/s, latencia promedio</div>
+        </div>
+
+        <div class="pillar-card">
+          <div class="pillar-icon">🔍</div>
+          <div class="pillar-title">Trazas</div>
+          <div class="pillar-desc">Seguimiento de peticiones entre servicios</div>
+        </div>
+
+        <div class="pillar-card">
+          <div class="pillar-icon">📝</div>
+          <div class="pillar-title">Logs</div>
+          <div class="pillar-desc">Eventos estructurados con contexto distribuido</div>
+        </div>
+      </div>
+
+      <div class="highlight-box" style="border-left-color:var(--accent-cyan);">
+        <p>
+          <strong>Universal:</strong> Con OTLP puedes enviar datos a Grafana, Jaeger, Datadog, 
+          New Relic, o cualquier backend compatible. <strong>Sin vendor lock-in.</strong>
+        </p>
+      </div>
+    </div>
+
+    <div class="corner-tag">11.0 / OTEL</div>
+  </div>
+
+  <!-- SLIDE 4: SPRING BOOT 4 -->
+  <div class="slide" id="s4">
+    <div class="slide-label"><span>03</span> · Spring Boot 4</div>
+    <h2>El Punto de Inflexión</h2>
+    <p class="dim" style="margin-bottom:16px;">Por qué Spring Boot 4 cambia todo</p>
+
+    <div style="max-width:900px; width:100%;">
+      <div class="card" style="border-left:3px solid var(--accent-yellow);">
+        <h3>Antes de Spring Boot 4</h3>
+        <p style="margin-top:12px; margin-bottom:16px; font-size:14px;">
+          Integrar OpenTelemetry era una <strong>pesadilla</strong>:
+        </p>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num" style="color:var(--accent-red); border-color:rgba(243,139,168,.3);">❌</div>
+            <div class="step-body">
+              <p style="font-size:14px;">Agentes externos de Java (-javaagent:opentelemetry.jar)</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="color:var(--accent-red); border-color:rgba(243,139,168,.3);">❌</div>
+            <div class="step-body">
+              <p style="font-size:14px;">Librerías de terceros en versión "alfa" o "beta"</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="color:var(--accent-red); border-color:rgba(243,139,168,.3);">❌</div>
+            <div class="step-body">
+              <p style="font-size:14px;">Configuración manual de exporters y samplers</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px; border-left:3px solid var(--accent-green);">
+        <h3>Con Spring Boot 4</h3>
+        <p style="margin-top:12px; margin-bottom:16px; font-size:14px;">
+          <strong>Observabilidad nativa</strong> con soporte oficial:
+        </p>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num" style="color:var(--accent-green); border-color:rgba(166,227,161,.3);">✅</div>
+            <div class="step-body">
+              <p style="font-size:14px;">Starter oficial: <code>spring-boot-starter-actuator</code> + OTLP</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="color:var(--accent-green); border-color:rgba(166,227,161,.3);">✅</div>
+            <div class="step-body">
+              <p style="font-size:14px;">Autoconfiguración out-of-the-box</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="color:var(--accent-green); border-color:rgba(166,227,161,.3);">✅</div>
+            <div class="step-body">
+              <p style="font-size:14px;">Spring habla OTLP directamente (sin agentes)</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="corner-tag">11.0 / SPRING 4</div>
+  </div>
+
+  <!-- SLIDE 5: ACTUATOR VS OTEL -->
+  <div class="slide" id="s5">
+    <div class="slide-label"><span>04</span> · Comparativa</div>
+    <h2>Actuator vs OpenTelemetry</h2>
+    <p class="dim" style="margin-bottom:16px;">¿Competidores o complementarios?</p>
+
+    <div style="max-width:950px; width:100%;">
+      <div class="vs-container">
+        <div class="card" style="flex:1; border-top:3px solid var(--accent-blue);">
+          <h3 style="text-align:center; color:var(--accent-blue); margin-bottom:16px;">Spring Actuator</h3>
+          <div class="steps">
+            <div class="step">
+              <div class="step-num">📍</div>
+              <div class="step-body">
+                <p style="font-size:14px;"><strong>Pull-based:</strong> Prometheus raspa endpoints</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">💚</div>
+              <div class="step-body">
+                <p style="font-size:14px;"><strong>Health checks:</strong> /actuator/health</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">📊</div>
+              <div class="step-body">
+                <p style="font-size:14px;"><strong>Métricas locales:</strong> JVM, HTTP, DB pools</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">🎯</div>
+              <div class="step-body">
+                <p style="font-size:14px;"><strong>Ideal para:</strong> Monitoreo de instancia</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="vs-badge">VS</div>
+
+        <div class="card" style="flex:1; border-top:3px solid var(--accent-cyan);">
+          <h3 style="text-align:center; color:var(--accent-cyan); margin-bottom:16px;">OpenTelemetry</h3>
+          <div class="steps">
+            <div class="step">
+              <div class="step-num">🚀</div>
+              <div class="step-body">
+                <p style="font-size:14px;"><strong>Push-based:</strong> Envia datos activamente</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">🔍</div>
+              <div class="step-body">
+                <p style="font-size:14px;"><strong>Trazas distribuidas:</strong> TraceID end-to-end</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">🌐</div>
+              <div class="step-body">
+                <p style="font-size:14px;"><strong>Contexto completo:</strong> Spans entre servicios</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">🎯</div>
+              <div class="step-body">
+                <p style="font-size:14px;"><strong>Ideal para:</strong> Debugging distribuido</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:20px; border-left:3px solid var(--accent-orange);">
+        <h3 style="color:var(--accent-orange);">🏆 El Veredicto</h3>
+        <p style="margin-top:12px; font-size:15px; line-height:1.8;">
+          <strong>No son competidores — son complementarios.</strong><br/><br/>
+          Usaremos <strong>Actuator</strong> para health checks y métricas locales (Prometheus scraping),<br/>
+          y <strong>OpenTelemetry</strong> para el rastro completo de peticiones distribuidas.<br/><br/>
+          <span style="color:var(--accent-green);">Ejemplo: Cuando un pedido falla, Actuator te dice que 
+          el servicio está caído, y OTel te muestra exactamente qué petición causó el error.</span>
+        </p>
+      </div>
+    </div>
+
+    <div class="corner-tag">11.0 / COMPARATIVA</div>
+  </div>
+
+  <!-- SLIDE 6: LOS 3 PILARES -->
+  <div class="slide" id="s6">
+    <div class="slide-label"><span>05</span> · Pilares</div>
+    <h2>Los 3 Pilares de la Observabilidad</h2>
+    <p class="dim" style="margin-bottom:18px;">Métricas, Trazas y Logs trabajando juntos</p>
+
+    <div style="max-width:900px; width:100%;">
+      <div class="card" style="border-top:3px solid var(--accent-blue);">
+        <h3>1️⃣ Métricas (Metrics)</h3>
+        <p style="margin-top:8px; font-size:14px; line-height:1.7; color:var(--text-dim);">
+          <strong>Qué:</strong> Números agregados en el tiempo (latencia promedio, requests/segundo, % de CPU)<br/>
+          <strong>Para qué:</strong> Detectar <em>que</em> hay un problema ("La latencia subió 300%")<br/>
+          <strong>Ejemplo:</strong> Grafana mostrando gráficos de throughput y errores
+        </p>
+      </div>
+
+      <div class="card" style="margin-top:16px; border-top:3px solid var(--accent-cyan);">
+        <h3>2️⃣ Trazas (Traces)</h3>
+        <p style="margin-top:8px; font-size:14px; line-height:1.7; color:var(--text-dim);">
+          <strong>Qué:</strong> El recorrido de UNA petición entre servicios (Trace ID + Spans)<br/>
+          <strong>Para qué:</strong> Entender <em>por qué</em> hay un problema ("Order Service tardó 5s esperando a Inventory")<br/>
+          <strong>Ejemplo:</strong> Ver el waterfall completo de un pedido lento
+        </p>
+      </div>
+
+      <div class="card" style="margin-top:16px; border-top:3px solid var(--accent-yellow);">
+        <h3>3️⃣ Logs (Logs)</h3>
+        <p style="margin-top:8px; font-size:14px; line-height:1.7; color:var(--text-dim);">
+          <strong>Qué:</strong> Eventos discretos con contexto (timestamp, nivel, mensaje, TraceID)<br/>
+          <strong>Para qué:</strong> Detalles específicos ("Stock insuficiente para SKU-123 en Inventory Service")<br/>
+          <strong>Ejemplo:</strong> Logs correlacionados por TraceID para ver la historia completa
+        </p>
+      </div>
+
+      <div class="highlight-box" style="margin-top:20px; border-left-color:var(--accent-orange);">
+        <p>
+          <strong>🎯 El poder de OTel:</strong> Estos 3 pilares están <strong>correlacionados</strong> 
+          por TraceID. Un spike en latencia (métrica) te lleva a una traza específica, que te muestra 
+          los logs relevantes. Todo conectado.
+        </p>
+      </div>
+    </div>
+
+    <div class="corner-tag">11.0 / PILARES</div>
+  </div>
+
+  <!-- SLIDE 7: ARQUITECTURA OTEL -->
+  <div class="slide" id="s7">
+    <div class="slide-label"><span>06</span> · Arquitectura</div>
+    <h2>Cómo Fluye la Observabilidad</h2>
+    <p class="dim" style="margin-bottom:18px;">De tu app al backend de análisis</p>
+
+    <div style="max-width:900px; width:100%;">
+      <div class="card" style="border-left:3px solid var(--accent-blue);">
+        <h3>El Flujo OTLP</h3>
+        <div class="steps" style="margin-top:16px;">
+          <div class="step">
+            <div class="step-num" style="color:var(--accent-green); border-color:rgba(166,227,161,.3);">1</div>
+            <div class="step-body">
+              <p style="font-size:14px;">
+                <strong>Instrumentación:</strong> Tu app de Spring Boot genera métricas, trazas y logs
+              </p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="color:var(--accent-cyan); border-color:rgba(137,220,235,.3);">2</div>
+            <div class="step-body">
+              <p style="font-size:14px;">
+                <strong>Exportación:</strong> Los datos se envían vía <code>OTLP</code> (gRPC o HTTP)
+              </p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="color:var(--accent-blue); border-color:rgba(137,180,250,.3);">3</div>
+            <div class="step-body">
+              <p style="font-size:14px;">
+                <strong>Collector (Opcional):</strong> Un intermediario que procesa, filtra y enruta datos
+              </p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="color:var(--accent-yellow); border-color:rgba(249,226,175,.3);">4</div>
+            <div class="step-body">
+              <p style="font-size:14px;">
+                <strong>Backend:</strong> Grafana Tempo, Jaeger, o cualquier backend compatible los almacena
+              </p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="color:var(--accent-orange); border-color:rgba(250,179,135,.3);">5</div>
+            <div class="step-body">
+              <p style="font-size:14px;">
+                <strong>Visualización:</strong> Grafana te muestra gráficos, traces, y logs unidos
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="highlight-box" style="margin-top:20px; border-left-color:var(--accent-cyan);">
+        <p>
+          <strong>💡 Simplicidad:</strong> En desarrollo, podemos saltar el Collector y enviar directamente 
+          a Tempo o Jaeger. En producción, el Collector nos da control fino sobre qué enviar y adónde.
+        </p>
+      </div>
+    </div>
+
+    <div class="corner-tag">11.0 / ARQUITECTURA</div>
+  </div>
+
+  <!-- SLIDE 8: RESUMEN -->
+  <div class="slide" id="s8">
+    <div class="slide-label"><span>07</span> · Resumen</div>
+    <svg class="deco-dots" style="bottom:-50px;left:-30px;width:240px;height:240px;" viewBox="0 0 240 240">
+      <defs><pattern id="dp2" x="0" y="0" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.6" fill="var(--accent-blue)"/></pattern></defs>
+      <rect width="240" height="240" fill="url(#dp2)"/>
+    </svg>
+
+    <div class="badge badge-blue" style="margin-bottom:16px;">Puntos Clave</div>
+    <h1>OpenTelemetry: Resumen</h1>
+
+    <div class="card" style="margin-top:26px; max-width:760px; padding:28px 32px;">
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">🔍</div>
+          <div class="step-body">
+            <p><strong>Observabilidad &gt; Monitoreo:</strong> Permite preguntar "por qué" sin código nuevo</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">🌐</div>
+          <div class="step-body">
+            <p><strong>OTel = Estándar Universal:</strong> Un protocolo (OTLP) para todos los backends</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">🎯</div>
+          <div class="step-body">
+            <p><strong>Spring Boot 4:</strong> Observabilidad nativa sin agentes externos</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">📊</div>
+          <div class="step-body">
+            <p><strong>3 Pilares:</strong> Métricas (qué), Trazas (por qué), Logs (detalles)</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">🤝</div>
+          <div class="step-body">
+            <p><strong>Actuator + OTel:</strong> Complementarios, no competidores</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p style="color:var(--text-dim); margin-top:20px; text-align:center; font-size:14px; max-width:620px;">
+      Con OpenTelemetry, pasamos de <strong>"algo está roto"</strong> a 
+      <strong>"sé exactamente qué pedido, en qué servicio, y por qué falló"</strong>.
+    </p>
+
+    <div style="margin-top:20px;">
+      <div class="badge badge-cyan">🎯 Próxima clase: Implementación práctica en Spring Boot 4</div>
+    </div>
+
+    <div class="corner-tag">11.0 / FIN</div>
+  </div>
+
+</div>
+
+<div class="nav">
+  <button id="btnPrev" disabled>◀</button>
+  <div class="dots" id="dots"></div>
+  <button id="btnNext">▶</button>
+</div>
+
+<script>
+  const deck   = document.getElementById('deck');
+  const slides = document.querySelectorAll('.slide');
+  const total  = slides.length;
+  let current  = 0;
+
+  const dotsEl = document.getElementById('dots');
+  slides.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.onclick   = () => goTo(i);
+    dotsEl.appendChild(d);
+  });
+
+  function goTo(n) {
+    if (n < 0 || n >= total) return;
+    slides[current].classList.remove('active');
+    current = n;
+    slides[current].classList.add('active');
+    deck.style.transform = `translateX(-${current * 100}vw)`;
+    document.querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('active', i === current));
+    document.getElementById('btnPrev').disabled = current === 0;
+    document.getElementById('btnNext').disabled = current === total - 1;
+  }
+
+  document.getElementById('btnPrev').onclick = () => goTo(current - 1);
+  document.getElementById('btnNext').onclick = () => goTo(current + 1);
+
+  // Keyboard navigation
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft') goTo(current - 1);
+    if (e.key === 'ArrowRight') goTo(current + 1);
+  });
+</script>
+
+</body>
+</html>
