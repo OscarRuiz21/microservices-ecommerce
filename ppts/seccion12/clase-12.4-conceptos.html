@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Clase 12.4 — Conceptos Base de Kubernetes</title>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap');
+
+        :root {
+            --bg-base: #1e1e2e;
+            --bg-card: #252538;
+            --bg-code: #1a1a2a;
+            --text-primary: #cdd6f4;
+            --text-dim: #7f849c;
+            --text-white: #f2f2f2;
+            --accent-green: #a6e3a1;
+            --accent-red: #f38ba8;
+            --accent-yellow: #f9e2af;
+            --accent-blue: #89b4fa;
+            --accent-cyan: #89dceb;
+            --accent-purple: #cba6f7;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html, body {
+            width: 100%; height: 100%; overflow: hidden;
+            background: #111118;
+            font-family: 'Inter', sans-serif;
+            color: var(--text-primary);
+        }
+
+        .deck { display: flex; width: 100%; height: 100vh; transition: transform .4s cubic-bezier(.4,0,.2,1); }
+
+        .slide {
+            min-width: 100vw; height: 100vh;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            padding: 60px;
+            background: var(--bg-base);
+            position: relative;
+        }
+
+        h1 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 38px;
+            color: var(--text-white);
+            text-align: center;
+            line-height: 1.3;
+        }
+
+        h2 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 28px;
+            color: var(--text-white);
+            margin-bottom: 32px;
+            text-align: center;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 28px 32px;
+            max-width: 860px;
+            width: 100%;
+            border: 1px solid rgba(137,180,250,.15);
+        }
+
+        .badge {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            margin-bottom: 14px;
+            display: inline-block;
+        }
+
+        .badge-blue   { background: rgba(137,180,250,.15); color: var(--accent-blue); }
+        .badge-green  { background: rgba(166,227,161,.15); color: var(--accent-green); }
+        .badge-cyan   { background: rgba(137,220,235,.15); color: var(--accent-cyan); }
+        .badge-yellow { background: rgba(249,226,175,.15); color: var(--accent-yellow); }
+
+        .corner {
+            position: absolute;
+            bottom: 20px; right: 24px;
+            font-size: 11px;
+            color: var(--text-dim);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .nav {
+            position: fixed;
+            bottom: 30px; left: 50%;
+            transform: translateX(-50%);
+            display: flex; gap: 12px;
+        }
+
+        .nav button {
+            background: none; border: none;
+            color: var(--text-dim);
+            font-size: 20px; cursor: pointer;
+        }
+        .nav button:disabled { opacity: .3; }
+
+        .emoji-big {
+            font-size: 72px;
+            margin-bottom: 24px;
+            display: block;
+            text-align: center;
+        }
+
+        .concept-row {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+        }
+
+        .concept-icon {
+            font-size: 32px;
+            min-width: 48px;
+            text-align: center;
+            margin-top: 2px;
+        }
+
+        .concept-text h3 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 15px;
+            color: var(--text-white);
+            margin-bottom: 5px;
+        }
+
+        .concept-text p {
+            font-size: 13px;
+            color: var(--text-dim);
+            line-height: 1.6;
+        }
+
+        .divider {
+            border: none;
+            border-top: 1px solid rgba(137,180,250,.1);
+            margin: 18px 0;
+        }
+
+        .code-block {
+            background: var(--bg-code);
+            border-radius: 8px;
+            padding: 16px 20px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            line-height: 1.7;
+            border: 1px solid rgba(137,180,250,.1);
+            margin-top: 16px;
+        }
+
+        .k { color: var(--accent-cyan); }
+        .v { color: var(--accent-green); }
+        .s { color: var(--accent-yellow); }
+
+        .highlight-box {
+            background: rgba(137,180,250,.06);
+            border-left: 3px solid var(--accent-blue);
+            padding: 14px 18px;
+            border-radius: 0 8px 8px 0;
+            margin-top: 16px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .flow {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            justify-content: center;
+            margin: 20px 0 8px;
+        }
+
+        .flow-box {
+            background: var(--bg-card);
+            border: 1px solid rgba(137,180,250,.2);
+            border-radius: 10px;
+            padding: 14px 20px;
+            text-align: center;
+            min-width: 150px;
+        }
+
+        .flow-box .label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            color: var(--text-white);
+            margin-bottom: 4px;
+        }
+
+        .flow-box .sub {
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+
+        .flow-arrow { font-size: 20px; color: var(--accent-blue); }
+
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            max-width: 860px;
+            width: 100%;
+        }
+
+        .col-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+        }
+
+        .col-card h3 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            margin-bottom: 14px;
+        }
+
+        .col-card p {
+            font-size: 13px;
+            color: var(--text-dim);
+            line-height: 1.8;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="deck" id="deck">
+
+    <!-- SLIDE 1: INTRO -->
+    <div class="slide">
+        <div class="badge badge-cyan">Sección 12 · Clase 12.4</div>
+        <span class="emoji-big">☸️</span>
+        <h1>Tres conceptos.<br/>Todo Kubernetes.</h1>
+
+        <div class="card" style="margin-top: 32px; max-width: 580px;">
+            <div class="concept-row">
+                <div class="concept-icon">📋</div>
+                <div class="concept-text">
+                    <h3>Deployment</h3>
+                    <p>Declaración de qué correr y cómo.</p>
+                </div>
+            </div>
+            <hr class="divider"/>
+            <div class="concept-row">
+                <div class="concept-icon">🌐</div>
+                <div class="concept-text">
+                    <h3>Service</h3>
+                    <p>DNS estable entre pods. Reemplaza a Eureka.</p>
+                </div>
+            </div>
+            <hr class="divider"/>
+            <div class="concept-row">
+                <div class="concept-icon">💾</div>
+                <div class="concept-text">
+                    <h3>PVC</h3>
+                    <p>Almacenamiento que sobrevive reinicios.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="corner">12.4 / INTRO</div>
+    </div>
+
+    <!-- SLIDE 2: DEPLOYMENT -->
+    <div class="slide">
+        <div class="badge badge-blue">Concepto 1 de 3</div>
+        <h2>📋 Deployment</h2>
+
+        <div class="card">
+            <p style="font-size: 15px; line-height: 1.7;">
+                Una declaración de intención. Le decís a Kubernetes qué imagen correr, cuántas réplicas, y qué variables necesita. Kubernetes se encarga del resto.
+            </p>
+
+            <div class="code-block">
+<span class="k">kind:</span> <span class="v">Deployment</span><br/>
+<span class="k">spec:</span><br/>
+&nbsp;&nbsp;<span class="k">replicas:</span> <span class="v">1</span><br/>
+&nbsp;&nbsp;<span class="k">template:</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">image:</span> <span class="s">order-service:latest</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">env:</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">- name:</span> <span class="v">SPRING_PROFILES_ACTIVE</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">value:</span> <span class="s">"k8s"</span>
+            </div>
+
+            <div class="highlight-box">
+                🔁 Si el contenedor se cae, Kubernetes lo levanta solo.<br/>
+                Vos no manejás contenedores — manejás <strong>declaraciones</strong>.
+            </div>
+        </div>
+
+        <div class="corner">12.4 / DEPLOYMENT</div>
+    </div>
+
+    <!-- SLIDE 3: SERVICE -->
+    <div class="slide">
+        <div class="badge badge-green">Concepto 2 de 3</div>
+        <h2>🌐 Service</h2>
+
+        <div class="card">
+            <p style="font-size: 15px; line-height: 1.7;">
+                Los pods son efímeros — mueren y renacen con IPs distintas. El Service es la capa estable: un nombre fijo que se convierte en DNS interno del cluster.
+            </p>
+
+            <div class="flow">
+                <div class="flow-box">
+                    <div class="label">order-service</div>
+                    <div class="sub">quiere hablar con...</div>
+                </div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-box" style="border-color: rgba(166,227,161,.4);">
+                    <div class="label" style="color: var(--accent-green);">inventory-service</div>
+                    <div class="sub">por nombre, no por IP</div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 16px; margin-top: 16px; font-size: 13px;">
+                <div style="flex:1; padding: 14px; background: rgba(243,139,168,.06); border-radius: 8px; border: 1px solid rgba(243,139,168,.2);">
+                    <span style="color: var(--accent-red);">✗ Eureka Server</span><br/>
+                    <span style="color: var(--text-dim);">Servicio externo que hay que levantar y mantener</span>
+                </div>
+                <div style="flex:1; padding: 14px; background: rgba(166,227,161,.06); border-radius: 8px; border: 1px solid rgba(166,227,161,.2);">
+                    <span style="color: var(--accent-green);">✓ K8s Service</span><br/>
+                    <span style="color: var(--text-dim);">DNS nativo del cluster. Sin configuración extra.</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="corner">12.4 / SERVICE</div>
+    </div>
+
+    <!-- SLIDE 4: PVC -->
+    <div class="slide">
+        <div class="badge badge-yellow">Concepto 3 de 3</div>
+        <h2>💾 PersistentVolumeClaim</h2>
+
+        <div class="two-col">
+            <div class="col-card" style="border: 1px solid rgba(243,139,168,.2);">
+                <h3 style="color: var(--accent-red);">❌ Sin PVC</h3>
+                <p>
+                    El pod se reinicia.<br/><br/>
+                    Todo lo que había en disco desaparece.<br/><br/>
+                    Tu base de datos pierde todos los datos.
+                </p>
+            </div>
+            <div class="col-card" style="border: 1px solid rgba(166,227,161,.2);">
+                <h3 style="color: var(--accent-green);">✅ Con PVC</h3>
+                <p>
+                    El pod se reinicia.<br/><br/>
+                    El volumen persiste independiente del pod.<br/><br/>
+                    Los datos siguen intactos.
+                </p>
+            </div>
+        </div>
+
+        <div class="highlight-box" style="max-width: 860px; width: 100%; margin-top: 20px;">
+            Un PVC es una solicitud formal: <span style="color: var(--accent-cyan); font-family: 'JetBrains Mono', monospace;">"necesito 1Gi de disco que sobreviva reinicios"</span><br/>
+            Kubernetes lo provee. Los datos quedan guardados aunque el pod muera.
+        </div>
+
+        <div class="corner">12.4 / PVC</div>
+    </div>
+
+</div>
+
+<div class="nav">
+    <button onclick="go(-1)" id="prev">◀</button>
+    <button onclick="go(1)" id="next">▶</button>
+</div>
+
+<script>
+    let current = 0;
+    const deck = document.getElementById("deck");
+    const total = document.querySelectorAll(".slide").length;
+
+    function go(dir) {
+        current += dir;
+        if (current < 0) current = 0;
+        if (current >= total) current = total - 1;
+        deck.style.transform = `translateX(-${current * 100}vw)`;
+        document.getElementById("prev").disabled = current === 0;
+        document.getElementById("next").disabled = current === total - 1;
+    }
+
+    document.addEventListener("keydown", e => {
+        if (e.key === "ArrowRight" || e.key === "ArrowDown") go(1);
+        if (e.key === "ArrowLeft"  || e.key === "ArrowUp")   go(-1);
+    });
+
+    go(0);
+</script>
+
+</body>
+</html>

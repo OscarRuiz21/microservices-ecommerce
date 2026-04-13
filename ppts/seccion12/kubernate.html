@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Clase 12.0 — Kubernetes: El Director de Orquesta</title>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap');
+
+        :root {
+        --bg-base:#1e1e2e;
+        --bg-card:#252538;
+        --bg-code:#1a1a2a;
+        --text-primary:#cdd6f4;
+        --text-dim:#7f849c;
+        --text-white:#f2f2f2;
+        --accent-green:#a6e3a1;
+        --accent-red:#f38ba8;
+        --accent-yellow:#f9e2af;
+        --accent-blue:#89b4fa;
+        --accent-cyan:#89dceb;
+        }
+
+        *{margin:0;padding:0;box-sizing:border-box;}
+
+        html,body{
+        width:100%;height:100%;overflow:hidden;
+        background:#111118;
+        font-family:'Inter',sans-serif;
+        color:var(--text-primary);
+        }
+
+        .deck{display:flex;width:100%;height:100vh;transition:transform .4s;}
+        .slide{
+        min-width:100vw;height:100vh;
+        display:flex;flex-direction:column;
+        justify-content:center;align-items:center;
+        padding:60px;
+        background:var(--bg-base);
+        position:relative;
+        }
+
+        h1{
+        font-family:'JetBrains Mono',monospace;
+        font-size:38px;
+        color:var(--text-white);
+        text-align:center;
+        }
+
+        h2{
+        font-family:'JetBrains Mono',monospace;
+        font-size:26px;
+        color:var(--text-white);
+        margin-bottom:12px;
+        }
+
+        .card{
+        background:var(--bg-card);
+        border-radius:12px;
+        padding:24px;
+        max-width:900px;
+        border:1px solid rgba(137,180,250,.15);
+        }
+
+        .comparison{
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:20px;
+        width:100%;
+        max-width:950px;
+        }
+
+        .flow-container{
+        display:flex;
+        align-items:center;
+        gap:16px;
+        justify-content:center;
+        flex-wrap:wrap;
+        margin-top:20px;
+        }
+
+        .flow-box{
+        background:var(--bg-card);
+        border:2px solid rgba(137,180,250,.3);
+        border-radius:12px;
+        padding:20px;
+        min-width:160px;
+        text-align:center;
+        }
+
+        .flow-arrow{
+        font-size:24px;
+        color:var(--accent-blue);
+        }
+
+        .highlight{
+        background:rgba(137,180,250,.08);
+        border-left:4px solid var(--accent-blue);
+        padding:18px;
+        border-radius:8px;
+        margin-top:20px;
+        }
+
+        .badge{
+        font-family:'JetBrains Mono',monospace;
+        font-size:11px;
+        padding:4px 10px;
+        border-radius:20px;
+        margin-bottom:14px;
+        }
+
+        .badge-blue{background:rgba(137,180,250,.15);color:var(--accent-blue);}
+        .badge-green{background:rgba(166,227,161,.15);color:var(--accent-green);}
+        .badge-red{background:rgba(243,139,168,.15);color:var(--accent-red);}
+        .badge-cyan{background:rgba(137,220,235,.15);color:var(--accent-cyan);}
+
+        .corner{
+        position:absolute;
+        bottom:20px;
+        right:24px;
+        font-size:11px;
+        color:var(--text-dim);
+        font-family:'JetBrains Mono',monospace;
+        }
+
+        .nav{
+        position:fixed;
+        bottom:30px;
+        left:50%;
+        transform:translateX(-50%);
+        display:flex;
+        gap:12px;
+        }
+
+        .nav button{
+        background:none;
+        border:none;
+        color:var(--text-dim);
+        font-size:20px;
+        cursor:pointer;
+        }
+        .nav button:disabled{opacity:.3;}
+    </style>
+</head>
+
+<body>
+
+<div class="deck" id="deck">
+
+    <!-- SLIDE 1 -->
+    <div class="slide">
+        <div class="badge badge-cyan">Sección 12 · Clase 12.0</div>
+        <h1>☸️ Kubernetes<br/>El Director de Orquesta<br/>de tus Microservicios</h1>
+
+        <div style="margin-top:30px;display:flex;gap:14px;">
+            <div class="badge badge-blue">⏱️ 8 min</div>
+            <div class="badge badge-green">🚀 Producción Real</div>
+        </div>
+
+        <div class="corner">12.0 / INTRO</div>
+    </div>
+
+    <!-- SLIDE 2 -->
+    <div class="slide">
+        <h2>😓 El Problema con Docker Compose</h2>
+
+        <div class="comparison">
+
+            <div class="card" style="border-left:4px solid var(--accent-red);">
+                <h3 style="color:var(--accent-red);margin-bottom:10px;">❌ Desarrollo</h3>
+                <p>docker-compose up</p>
+                <br/>
+                <p>• Si order-service muere → tú lo levantas</p>
+                <p>• Si hay más tráfico → tú escalas</p>
+                <p>• Si un contenedor falla → nadie lo revive</p>
+            </div>
+
+            <div class="card" style="border-left:4px solid var(--accent-green);">
+                <h3 style="color:var(--accent-green);margin-bottom:10px;">🚀 Producción Necesita</h3>
+                <p>• Autocuración</p>
+                <p>• Escalado automático</p>
+                <p>• Balanceo de carga</p>
+                <p>• Alta disponibilidad</p>
+            </div>
+
+        </div>
+
+        <div class="highlight">
+            💡 Docker Compose es perfecto para desarrollo.
+            Pero producción necesita algo que piense por nosotros.
+        </div>
+
+        <div class="corner">12.0 / PROBLEMA</div>
+    </div>
+
+    <!-- SLIDE 3 -->
+    <div class="slide">
+        <h2>🎼 Kubernetes = Director de Orquesta</h2>
+
+        <div class="flow-container">
+            <div class="flow-box">👨‍💻 Tú<br/>"Quiero 3 order-service"</div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-box" style="border-color:rgba(166,227,161,.5);">
+                ☸️ Kubernetes<br/><strong>Estado Deseado</strong>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-box">📦 3 Pods corriendo</div>
+        </div>
+
+        <div class="highlight">
+            Si un Pod muere…
+            Kubernetes lo vuelve a crear automáticamente 🔁
+        </div>
+
+        <div class="corner">12.0 / ORQUESTA</div>
+    </div>
+
+    <!-- SLIDE 4 -->
+    <div class="slide">
+        <h2>🧠 ¿Qué Hace Realmente?</h2>
+
+        <div class="card">
+            <p>Imagina tu proyecto:</p>
+            <br/>
+            <p>api-gateway → order-service → inventory-service → notification-service</p>
+            <br/>
+            <p>Kubernetes:</p>
+            <p>✔ Vigila que todos estén vivos</p>
+            <p>✔ Escala order-service si hay carga</p>
+            <p>✔ Balancea tráfico automáticamente</p>
+            <p>✔ Reinicia servicios caídos</p>
+        </div>
+
+        <div class="corner">12.0 / FUNCIONES</div>
+    </div>
+
+    <!-- SLIDE 5 -->
+    <div class="slide">
+        <h2>🛠️ Minikube = Simulador de Vuelo</h2>
+
+        <div class="flow-container">
+            <div class="flow-box">🌍 Kubernetes Cloud<br/>$$$</div>
+            <div class="flow-arrow">vs</div>
+            <div class="flow-box" style="border-color:rgba(137,220,235,.5);">
+                💻 Minikube<br/>Costo 0
+            </div>
+        </div>
+
+        <div class="highlight">
+            Minikube crea un clúster real en tu máquina.
+            Es como practicar con un Boeing ✈️
+            pero en tu jardín.
+        </div>
+
+        <div class="corner">12.0 / MINIKUBE</div>
+    </div>
+
+    <!-- SLIDE 6 -->
+    <div class="slide">
+        <h2>📚 Conceptos que Sí Necesitas</h2>
+
+        <div class="flow-container">
+
+            <div class="flow-box">📦 Pod<br/><span style="font-size:12px;color:var(--text-dim)">Contenedor Spring Boot</span></div>
+            <div class="flow-arrow">→</div>
+
+            <div class="flow-box">🖥️ Nodo<br/><span style="font-size:12px;color:var(--text-dim)">Máquina que ejecuta Pods</span></div>
+            <div class="flow-arrow">→</div>
+
+            <div class="flow-box">📊 Deployment<br/><span style="font-size:12px;color:var(--text-dim)">Cantidad de réplicas</span></div>
+            <div class="flow-arrow">→</div>
+
+            <div class="flow-box">🌐 Service<br/><span style="font-size:12px;color:var(--text-dim)">Expone el microservicio</span></div>
+
+        </div>
+
+        <div class="highlight">
+            🎯 No vamos a aprender TODO Kubernetes.
+            Solo lo necesario para llevar tu arquitectura a producción.
+        </div>
+
+        <div class="corner">12.0 / CONCEPTOS</div>
+    </div>
+
+    <!-- SLIDE 7 -->
+    <div class="slide">
+        <h2>🎯 Objetivo de Esta Sección</h2>
+
+        <div class="card" style="border-left:4px solid var(--accent-blue);">
+            <p>Queremos que tu sistema:</p>
+            <br/>
+            <p>✔ No dependa de que tú estés mirando logs</p>
+            <p>✔ Se recupere solo</p>
+            <p>✔ Escale automáticamente</p>
+            <p>✔ Esté listo para la nube</p>
+        </div>
+
+        <div style="margin-top:20px;font-size:18px;">
+            🚀 De docker-compose…
+            a producción real.
+        </div>
+
+        <div class="corner">12.0 / FIN</div>
+    </div>
+
+</div>
+
+<div class="nav">
+    <button onclick="go(-1)">◀</button>
+    <button onclick="go(1)">▶</button>
+</div>
+
+<script>
+    let current=0;
+    const deck=document.getElementById("deck");
+    const total=document.querySelectorAll(".slide").length;
+
+    function go(dir){
+    current+=dir;
+    if(current<0)current=0;
+    if(current>=total)current=total-1;
+    deck.style.transform=`translateX(-${current*100}vw)`;
+    }
+</script>
+
+</body>
+</html>
